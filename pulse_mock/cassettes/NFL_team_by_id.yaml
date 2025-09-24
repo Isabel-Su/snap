@@ -1,0 +1,41 @@
+---
+version: 1
+interactions:
+- request:
+    body: ""
+    form: {}
+    headers: {}
+    url: http://localhost:1339/v1/leagues
+    method: GET
+  response:
+    body: |
+      [{"id":"NCAAFB","name":"NCAA Football","abbreviation":"NCAAFB","sport":"football"},{"id":"NFL","name":"National Football League","abbreviation":"NFL","sport":"football"}]
+    headers:
+      Content-Length:
+      - "171"
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 16 Sep 2025 22:42:14 GMT
+    status: 200 OK
+    code: 200
+    duration: ""
+- request:
+    body: ""
+    form: {}
+    headers: {}
+    url: http://localhost:1339/v1/leagues/NFL/teams/NFL_team_ram7VKb86QoDRToIZOIN8rH
+    method: GET
+  response:
+    body: |
+      {"id":"NFL_team_ram7VKb86QoDRToIZOIN8rH","name":"Eagles","market":"Philadelphia","abbreviation":"PHI","identifiers":{"genius":"1305520","oddsjam":"EDCC2866B795","rotowire":"23","sis":"24","sportradar":"386bdbf9-9eea-4869-bb9a-274b0bc66e80","statsperform":"354"},"record":{"season_id":"NFL_season_vZj2aomBIaPwNJ4aJnPLdOoM","wins":2,"losses":0,"ties":0,"win_percentage":100},"colors":[{"hex":"#004c54","priority":1},{"hex":"#a5acaf","priority":2}]}
+    headers:
+      Content-Length:
+      - "447"
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 16 Sep 2025 22:42:14 GMT
+    status: 200 OK
+    code: 200
+    duration: ""

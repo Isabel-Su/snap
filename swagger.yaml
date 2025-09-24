@@ -1,0 +1,663 @@
+openapi: 3.0.3
+info:
+  title: NFL Mock API
+  description: |
+    A comprehensive NFL API providing access to leagues, teams, players, and games data.
+    
+    This mock API uses VCR cassettes to provide predictable, offline-capable responses 
+    that mirror a real NFL data service. Perfect for development, testing, and demos.
+    
+    ## Features
+    - **Complete NFL Data**: Teams, players, games, and league information
+    - **Rich Relationships**: Teams with players, games with participants
+    - **Detailed Records**: Season records, player statistics, game schedules
+    - **Search & Filter**: Find teams by name, players by position, games by date
+    - **Consistent Format**: All endpoints follow RESTful conventions
+    
+    ## Base URL
+    All endpoints are relative to: `http://localhost:1339`
+  version: 2.0.0
+  contact:
+    name: Pulse Mock API
+    url: https://github.com/yourusername/pulse-mock
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:1339
+    description: Mock API Server
+
+paths:
+  /v1/leagues:
+    get:
+      tags:
+        - Leagues
+      summary: Get all available leagues
+      description: Retrieve a list of all available sports leagues
+      operationId: getLeagues
+      responses:
+        '200':
+          description: List of available leagues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/League'
+              example:
+                - id: "NCAAFB"
+                  name: "NCAA Football"
+                  abbreviation: "NCAAFB"
+                  sport: "football"
+                - id: "NFL"
+                  name: "National Football League"
+                  abbreviation: "NFL"
+                  sport: "football"
+
+  /v1/leagues/{league}/teams:
+    get:
+      tags:
+        - Teams
+      summary: Get all teams in a league
+      description: Retrieve a list of all teams in the specified league
+      operationId: getTeams
+      parameters:
+        - name: league
+          in: path
+          required: true
+          description: League identifier (e.g., 'NFL', 'NCAAFB')
+          schema:
+            type: string
+            example: "NFL"
+      responses:
+        '200':
+          description: List of teams in the league
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Team'
+
+  /v1/leagues/{league}/teams/{teamId}:
+    get:
+      tags:
+        - Teams
+      summary: Get a specific team
+      description: Retrieve detailed information about a specific team
+      operationId: getTeam
+      parameters:
+        - name: league
+          in: path
+          required: true
+          description: League identifier
+          schema:
+            type: string
+            example: "NFL"
+        - name: teamId
+          in: path
+          required: true
+          description: Team identifier
+          schema:
+            type: string
+            example: "NFL_team_ram7VKb86QoDRToIZOIN8rH"
+      responses:
+        '200':
+          description: Team details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+
+  /v1/leagues/{league}/teams/{teamId}/players:
+    get:
+      tags:
+        - Players
+      summary: Get all players for a team
+      description: Retrieve a list of all players on the specified team
+      operationId: getTeamPlayers
+      parameters:
+        - name: league
+          in: path
+          required: true
+          description: League identifier
+          schema:
+            type: string
+            example: "NFL"
+        - name: teamId
+          in: path
+          required: true
+          description: Team identifier
+          schema:
+            type: string
+            example: "NFL_team_ram7VKb86QoDRToIZOIN8rH"
+      responses:
+        '200':
+          description: List of players on the team
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Player'
+
+  /v1/leagues/{league}/teams/{teamId}/games:
+    get:
+      tags:
+        - Games
+      summary: Get all games for a team
+      description: Retrieve a list of all games for the specified team
+      operationId: getTeamGames
+      parameters:
+        - name: league
+          in: path
+          required: true
+          description: League identifier
+          schema:
+            type: string
+            example: "NFL"
+        - name: teamId
+          in: path
+          required: true
+          description: Team identifier
+          schema:
+            type: string
+            example: "NFL_team_ram7VKb86QoDRToIZOIN8rH"
+      responses:
+        '200':
+          description: List of games for the team
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Game'
+
+  /v1/leagues/{league}/players:
+    get:
+      tags:
+        - Players
+      summary: Get all players in a league
+      description: Retrieve a list of all players in the specified league with pagination support
+      operationId: getAllPlayers
+      parameters:
+        - name: league
+          in: path
+          required: true
+          description: League identifier
+          schema:
+            type: string
+            example: "NFL"
+        - name: cursor
+          in: query
+          required: false
+          description: Pagination cursor for retrieving next page of results
+          schema:
+            type: string
+            example: ""
+        - name: per_page
+          in: query
+          required: false
+          description: Number of players to return per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2500
+            default: 100
+            example: 2500
+      responses:
+        '200':
+          description: Paginated list of players
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayersResponse'
+
+  /v1/leagues/{league}/players/{playerId}:
+    get:
+      tags:
+        - Players
+      summary: Get a specific player
+      description: Retrieve detailed information about a specific player
+      operationId: getPlayer
+      parameters:
+        - name: league
+          in: path
+          required: true
+          description: League identifier
+          schema:
+            type: string
+            example: "NFL"
+        - name: playerId
+          in: path
+          required: true
+          description: Player identifier
+          schema:
+            type: string
+            example: "NFL_player_SyWsd7T30Oev84KlU0vKvQrU"
+      responses:
+        '200':
+          description: Player details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+
+  /v1/leagues/{league}/games:
+    get:
+      tags:
+        - Games
+      summary: Get all games in a league
+      description: Retrieve a list of all games in the specified league with optional date filtering
+      operationId: getAllGames
+      parameters:
+        - name: league
+          in: path
+          required: true
+          description: League identifier
+          schema:
+            type: string
+            example: "NFL"
+        - name: from_date
+          in: query
+          required: false
+          description: Start date for filtering games (YYYY-MM-DD format)
+          schema:
+            type: string
+            format: date
+            example: "2025-09-05"
+        - name: to_date
+          in: query
+          required: false
+          description: End date for filtering games (YYYY-MM-DD format)
+          schema:
+            type: string
+            format: date
+            example: "2026-01-04"
+      responses:
+        '200':
+          description: List of games in the league
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Game'
+
+  /v1/leagues/{league}/games/{gameId}:
+    get:
+      tags:
+        - Games
+      summary: Get a specific game
+      description: Retrieve detailed information about a specific game
+      operationId: getGame
+      parameters:
+        - name: league
+          in: path
+          required: true
+          description: League identifier
+          schema:
+            type: string
+            example: "NFL"
+        - name: gameId
+          in: path
+          required: true
+          description: Game identifier
+          schema:
+            type: string
+            example: "NFL_game_s7NlrGA1L1RaSOZNtJ8HHSj8"
+      responses:
+        '200':
+          description: Game details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Game'
+
+components:
+  schemas:
+    League:
+      type: object
+      required:
+        - id
+        - name
+        - abbreviation
+        - sport
+      properties:
+        id:
+          type: string
+          description: Unique league identifier
+          example: "NFL"
+        name:
+          type: string
+          description: Full league name
+          example: "National Football League"
+        abbreviation:
+          type: string
+          description: League abbreviation
+          example: "NFL"
+        sport:
+          type: string
+          description: Sport type
+          example: "football"
+
+    Team:
+      type: object
+      required:
+        - id
+        - name
+        - market
+        - abbreviation
+      properties:
+        id:
+          type: string
+          description: Unique team identifier
+          example: "NFL_team_ram7VKb86QoDRToIZOIN8rH"
+        name:
+          type: string
+          description: Team name
+          example: "Eagles"
+        market:
+          type: string
+          description: Team market/city
+          example: "Philadelphia"
+        abbreviation:
+          type: string
+          description: Team abbreviation
+          example: "PHI"
+        identifiers:
+          $ref: '#/components/schemas/TeamIdentifiers'
+        record:
+          $ref: '#/components/schemas/TeamRecord'
+        colors:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamColor'
+
+    TeamIdentifiers:
+      type: object
+      description: External identifiers for the team across various data providers
+      properties:
+        genius:
+          type: string
+          example: "1305520"
+        oddsjam:
+          type: string
+          example: "EDCC2866B795"
+        rotowire:
+          type: string
+          example: "23"
+        sis:
+          type: string
+          example: "24"
+        sportradar:
+          type: string
+          example: "386bdbf9-9eea-4869-bb9a-274b0bc66e80"
+        statsperform:
+          type: string
+          example: "354"
+
+    TeamRecord:
+      type: object
+      description: Team's season record
+      required:
+        - season_id
+        - wins
+        - losses
+        - ties
+        - win_percentage
+      properties:
+        season_id:
+          type: string
+          description: Season identifier
+          example: "NFL_season_vZj2aomBIaPwNJ4aJnPLdOoM"
+        wins:
+          type: integer
+          description: Number of wins
+          example: 2
+        losses:
+          type: integer
+          description: Number of losses
+          example: 0
+        ties:
+          type: integer
+          description: Number of ties
+          example: 0
+        win_percentage:
+          type: number
+          description: Win percentage (0-100)
+          example: 100
+
+    TeamColor:
+      type: object
+      description: Team color information
+      required:
+        - hex
+        - priority
+      properties:
+        hex:
+          type: string
+          description: Hex color code
+          example: "#004c54"
+        priority:
+          type: integer
+          description: Color priority (1 = primary, 2 = secondary, etc.)
+          example: 1
+
+    Player:
+      type: object
+      required:
+        - id
+        - first_name
+        - last_name
+        - position
+      properties:
+        id:
+          type: string
+          description: Unique player identifier
+          example: "NFL_player_SyWsd7T30Oev84KlU0vKvQrU"
+        first_name:
+          type: string
+          description: Player's first name
+          example: "Jalen"
+        last_name:
+          type: string
+          description: Player's last name
+          example: "Hurts"
+        position:
+          type: string
+          description: Player position
+          example: "QB"
+        current_depth:
+          type: integer
+          description: Current depth chart position
+          example: 1
+        jersey_number:
+          type: string
+          description: Jersey number
+          example: "1"
+        image_url:
+          type: string
+          format: uri
+          description: URL to player image
+          example: "https://static.prizepicks.com/images/teams/nfl/NFL_team_ram7VKb86QoDRToIZOIN8rH/1.webp"
+        image_updated_at:
+          type: string
+          format: date-time
+          description: When the image was last updated
+          example: "2025-09-16T12:00:04-04:00"
+        identifiers:
+          $ref: '#/components/schemas/PlayerIdentifiers'
+        created_at:
+          type: string
+          format: date-time
+          description: When the player record was created
+          example: "2025-09-05T12:00:05-04:00"
+        updated_at:
+          type: string
+          format: date-time
+          description: When the player record was last updated
+          example: "2025-09-16T12:00:04-04:00"
+        team:
+          $ref: '#/components/schemas/Team'
+
+    PlayerIdentifiers:
+      type: object
+      description: External identifiers for the player
+      properties:
+        gsis:
+          type: string
+          example: "00-0036389"
+        "nfl.com":
+          type: string
+          example: "56704"
+        sportradar:
+          type: string
+          example: "6ceb1330-795d-4f88-aadf-fbc926339e02"
+
+    PlayersResponse:
+      type: object
+      description: Paginated players response
+      required:
+        - players
+      properties:
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/Player'
+          description: Array of player objects
+        cursor:
+          type: string
+          description: Pagination cursor for next page
+          nullable: true
+        has_more:
+          type: boolean
+          description: Whether there are more results available
+          default: false
+
+    Game:
+      type: object
+      required:
+        - id
+        - display_name
+        - name
+        - scheduled_at
+        - status
+        - league
+        - home_team
+        - away_team
+      properties:
+        id:
+          type: string
+          description: Unique game identifier
+          example: "NFL_game_s7NlrGA1L1RaSOZNtJ8HHSj8"
+        display_name:
+          type: string
+          description: Human-readable game name
+          example: "Dallas Cowboys @ Philadelphia Eagles"
+        name:
+          type: string
+          description: Official game name
+          example: "Philadelphia Eagles v Dallas Cowboys"
+        coverage:
+          type: string
+          description: Coverage level
+          enum: ["full", "basic", "unknown"]
+          example: "full"
+        scheduled_at:
+          type: string
+          format: date-time
+          description: Game scheduled date and time
+          example: "2025-09-05T00:20:00Z"
+        status:
+          type: string
+          description: Current game status
+          enum: ["scheduled", "inprogress", "closed", "cancelled"]
+          example: "closed"
+        manually_scored:
+          type: boolean
+          description: Whether the game was manually scored
+          example: false
+        broadcast:
+          type: array
+          items:
+            $ref: '#/components/schemas/Broadcast'
+          description: Broadcast information
+        league:
+          type: string
+          description: League identifier
+          example: "NFL"
+        identifiers:
+          $ref: '#/components/schemas/GameIdentifiers'
+        home_team:
+          $ref: '#/components/schemas/Team'
+        away_team:
+          $ref: '#/components/schemas/Team'
+
+    Broadcast:
+      type: object
+      required:
+        - network
+      properties:
+        network:
+          type: string
+          description: Broadcasting network
+          example: "NBC"
+
+    GameIdentifiers:
+      type: object
+      description: External identifiers for the game
+      properties:
+        oddsjam:
+          type: string
+          example: "202509059156A38C"
+        sis:
+          type: string
+          example: "4205"
+        sportradar:
+          type: string
+          example: "56779053-89da-4939-bc22-9669ae1fe05a"
+
+  responses:
+    NotFound:
+      description: The requested resource was not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Resource not found"
+              message:
+                type: string
+                example: "The requested team could not be found"
+
+    BadRequest:
+      description: Bad request - invalid parameters
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Invalid parameter"
+              message:
+                type: string
+                example: "League parameter must be a valid league identifier"
+
+tags:
+  - name: Leagues
+    description: Operations related to sports leagues
+  - name: Teams
+    description: Operations related to teams within leagues
+  - name: Players
+    description: Operations related to players
+  - name: Games
+    description: Operations related to games and schedules
+
+externalDocs:
+  description: Pulse Mock API Documentation
+  url: https://github.com/yourusername/pulse-mock

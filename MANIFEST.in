@@ -1,0 +1,6 @@
+include README.md
+include requirements.txt
+include football_game_by_id.yaml
+include example.py
+include test_example.py
+recursive-include pulse_mock *.py

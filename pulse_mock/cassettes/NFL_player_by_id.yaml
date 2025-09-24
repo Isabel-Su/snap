@@ -1,0 +1,41 @@
+---
+version: 1
+interactions:
+- request:
+    body: ""
+    form: {}
+    headers: {}
+    url: http://localhost:1339/v1/leagues
+    method: GET
+  response:
+    body: |
+      [{"id":"NCAAFB","name":"NCAA Football","abbreviation":"NCAAFB","sport":"football"},{"id":"NFL","name":"National Football League","abbreviation":"NFL","sport":"football"}]
+    headers:
+      Content-Length:
+      - "171"
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 16 Sep 2025 22:59:50 GMT
+    status: 200 OK
+    code: 200
+    duration: ""
+- request:
+    body: ""
+    form: {}
+    headers: {}
+    url: http://localhost:1339/v1/leagues/NFL/players/NFL_player_SyWsd7T30Oev84KlU0vKvQrU
+    method: GET
+  response:
+    body: |
+      {"id":"NFL_player_SyWsd7T30Oev84KlU0vKvQrU","first_name":"Jalen","last_name":"Hurts","position":"QB","current_depth":1,"image_url":"https://static.prizepicks.com/images/teams/nfl/NFL_team_ram7VKb86QoDRToIZOIN8rH/1.webp","image_updated_at":"2025-09-16T12:00:10-04:00","identifiers":{"genius":"1014921","gsis":"00-0036389","nfl.com":"52461","oddsjam":"E3F53FF48C95","rotowire":"14416","sportradar":"64bd0f02-6a5d-407e-98f1-fd02048ea21d","statsperform":"913271"},"created_at":"2024-07-25T10:08:17-04:00","updated_at":"2025-09-16T12:00:10-04:00","team":{"id":"NFL_team_ram7VKb86QoDRToIZOIN8rH","name":"Eagles","market":"Philadelphia","abbreviation":"PHI","identifiers":{"genius":"1305520","oddsjam":"EDCC2866B795","rotowire":"23","sis":"24","sportradar":"386bdbf9-9eea-4869-bb9a-274b0bc66e80","statsperform":"354"}},"jersey_number":"1"}
+    headers:
+      Content-Length:
+      - "833"
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 16 Sep 2025 22:59:50 GMT
+    status: 200 OK
+    code: 200
+    duration: ""
