@@ -1,25 +1,42 @@
-# YAML for game_id: 2025_02_PHI_KC
-plays:
-  - game_seconds_remaining: 3595.0
-    home_team: KC
-    yards_gained: -3.0
-    comp_air_epa: 0.0
-    air_epa: null
-    wp: 0.433546245098114
-    wpa: -0.0272935926914215
-    air_wpa: null
-    comp_air_wpa: 0.0
-    qb_epa: -1.11595466686413
-    xyac_epa: null
-  - game_seconds_remaining: 3550.0
-    home_team: KC
-    yards_gained: 0.0
-    comp_air_epa: -0.972577557899058
-    air_epa: -0.972577557899058
-    wp: 0.406252652406693
-    wpa: -0.0251756608486176
-    air_wpa: 0.0
-    comp_air_wpa: 0.0
-    qb_epa: -0.743335555307567
-    xyac_epa: 1.25398030850538
-  # ...remaining plays omitted for brevity...
+---
+version: 1
+interactions:
+  - request:
+      body: ""
+      form: {}
+      headers: {}
+      url: http://localhost:1339/v1/players/NFL_player_SyWsd7T30Oev84KlU0vKvQrU/games/2025_02_PHI_KC/playbyplay
+      method: GET
+    response:
+      body: |
+        [
+          {"game_seconds_remaining": 3595.0, "home_team": "KC", "yards_gained": -3.0, "comp_air_epa": 0.0, "air_epa": null, "wp": 0.433546245098114, "wpa": -0.0272935926914215, "air_wpa": null, "comp_air_wpa": 0.0, "qb_epa": -1.11595466686413, "xyac_epa": null},
+          {"game_seconds_remaining": 3550.0, "home_team": "KC", "yards_gained": 0.0, "comp_air_epa": -0.972577557899058, "air_epa": -0.972577557899058, "wp": 0.406252652406693, "wpa": -0.0251756608486176, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": -0.743335555307567, "xyac_epa": 1.25398030850538},
+          {"game_seconds_remaining": 3482.0, "home_team": "KC", "yards_gained": 7.0, "comp_air_epa": -1.00803584931418, "air_epa": -1.00803584931418, "wp": 0.396155327558517, "wpa": 0.0127798020839691, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": -0.323364527896047, "xyac_epa": 1.47345039435468},
+          {"game_seconds_remaining": 3374.0, "home_team": "KC", "yards_gained": 0.0, "comp_air_epa": 0.0, "air_epa": -0.486119940876961, "wp": 0.436208635568619, "wpa": -0.0318374335765839, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": -0.938230205792934, "xyac_epa": 0.800273557063452},
+          {"game_seconds_remaining": 3369.0, "home_team": "KC", "yards_gained": 6.0, "comp_air_epa": -0.753707751166076, "air_epa": -0.753707751166076, "wp": 0.404371201992035, "wpa": -0.0094789266586303, "air_wpa": -0.0094789266586303, "comp_air_wpa": -0.0094789266586303, "qb_epa": -0.753707751166076, "xyac_epa": 1.04014100213171},
+          {"game_seconds_remaining": 3275.0, "home_team": "KC", "yards_gained": 0.0, "comp_air_epa": 0.0, "air_epa": 0.94627399649471, "wp": 0.431376695632935, "wpa": -0.0178917050361633, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": -0.597298938315362, "xyac_epa": 0.0983191907981753},
+          {"game_seconds_remaining": 3270.0, "home_team": "KC", "yards_gained": 0.0, "comp_air_epa": -1.40458782482892, "air_epa": -1.40458782482892, "wp": 0.413484990596771, "wpa": -0.0253308713436127, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": -0.75834131706506, "xyac_epa": 1.42588794600069},
+          {"game_seconds_remaining": 3222.0, "home_team": "KC", "yards_gained": 0.0, "comp_air_epa": 0.0, "air_epa": 3.0520238254685, "wp": 0.388154119253159, "wpa": -0.03641676902771, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": -1.24191433889791, "xyac_epa": 0.474987234662821},
+          {"game_seconds_remaining": 2962.0, "home_team": "KC", "yards_gained": 6.0, "comp_air_epa": 0.360130429035053, "air_epa": 0.360130429035053, "wp": 0.475132346153259, "wpa": -0.0176418423652649, "air_wpa": -0.0176418423652649, "comp_air_wpa": -0.0176418423652649, "qb_epa": 0.360130429035053, "xyac_epa": 0.525236428291817},
+          {"game_seconds_remaining": 2850.0, "home_team": "KC", "yards_gained": 13.0, "comp_air_epa": -1.20649621239863, "air_epa": -1.20649621239863, "wp": 0.526405572891235, "wpa": 0.0332177877426147, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": 1.39728450542316, "xyac_epa": 1.49153271680232},
+          {"game_seconds_remaining": 2497.0, "home_team": "KC", "yards_gained": 4.0, "comp_air_epa": -1.21455666376278, "air_epa": -1.21455666376278, "wp": 0.583339869976044, "wpa": -0.0106878876686096, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": -0.0040404107421636, "xyac_epa": 1.30314815666551},
+          {"game_seconds_remaining": 2432.0, "home_team": "KC", "yards_gained": 6.0, "comp_air_epa": -1.01070513017476, "air_epa": -1.01070513017476, "wp": 0.550510764122009, "wpa": 0.0163245797157288, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": 0.184665024746209, "xyac_epa": 1.30008851018378},
+          {"game_seconds_remaining": 1920.0, "home_team": "KC", "yards_gained": 0.0, "comp_air_epa": 0.0, "air_epa": 3.08106248825789, "wp": 0.364693105220795, "wpa": -0.0178998708724976, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": -0.477312174392864, "xyac_epa": 0.827970573278849},
+          {"game_seconds_remaining": 1912.0, "home_team": "KC", "yards_gained": 7.0, "comp_air_epa": 0.484530367190018, "air_epa": 0.484530367190018, "wp": 0.346793234348297, "wpa": 0.0317727029323578, "air_wpa": 0.0317727029323578, "comp_air_wpa": 0.0317727029323578, "qb_epa": 0.484530367190018, "xyac_epa": 0.30961150342805},
+          {"game_seconds_remaining": 1882.0, "home_team": "KC", "yards_gained": 4.0, "comp_air_epa": 0.572160966694355, "air_epa": 0.572160966694355, "wp": 0.378565937280655, "wpa": 0.0468187928199768, "air_wpa": 0.0468187928199768, "comp_air_wpa": 0.0468187928199768, "qb_epa": 0.572160966694355, "xyac_epa": 0.227437991004832},
+          {"game_seconds_remaining": 1855.0, "home_team": "KC", "yards_gained": 0.0, "comp_air_epa": 0.0, "air_epa": 0.449071541195735, "wp": 0.425384730100632, "wpa": -0.023396223783493, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": -0.492092015861999, "xyac_epa": null},
+          {"game_seconds_remaining": 1850.0, "home_team": "KC", "yards_gained": 1.0, "comp_air_epa": -0.42193422478158, "air_epa": -0.42193422478158, "wp": 0.401988506317139, "wpa": -0.028325229883194, "air_wpa": -0.028325229883194, "comp_air_wpa": -0.028325229883194, "qb_epa": -0.42193422478158, "xyac_epa": 0.737812082476419},
+          {"game_seconds_remaining": 1839.0, "home_team": "KC", "yards_gained": 8.0, "comp_air_epa": -0.729410820466001, "air_epa": -0.729410820466001, "wp": 0.373663276433945, "wpa": -0.0058660209178924, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": -0.0966818463639356, "xyac_epa": 0.947888824034112},
+          {"game_seconds_remaining": 1597.0, "home_team": "KC", "yards_gained": 0.0, "comp_air_epa": 0.0, "air_epa": 2.51445765286917, "wp": 0.51592493057251, "wpa": -0.0441631376743317, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": -1.29137617587221, "xyac_epa": 0.728604543648636},
+          {"game_seconds_remaining": 1358.0, "home_team": "KC", "yards_gained": -4.0, "comp_air_epa": 0.0, "air_epa": null, "wp": 0.589113116264343, "wpa": -0.0220447182655334, "air_wpa": null, "comp_air_wpa": 0.0, "qb_epa": -1.0908731482923, "xyac_epa": null},
+          {"game_seconds_remaining": 717.0, "home_team": "KC", "yards_gained": 5.0, "comp_air_epa": 0.250031374394894, "air_epa": 0.250031374394894, "wp": 0.751501381397247, "wpa": 0.0069391131401062, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": 0.415266650030389, "xyac_epa": 0.314229772199247},
+          {"game_seconds_remaining": 646.0, "home_team": "KC", "yards_gained": 0.0, "comp_air_epa": 0.0, "air_epa": -0.0356697599636391, "wp": 0.755072116851807, "wpa": -0.0282130241394043, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": -0.648655565339141, "xyac_epa": 0.564903215623229},
+          {"game_seconds_remaining": 642.0, "home_team": "KC", "yards_gained": 28.0, "comp_air_epa": 2.82602161640534, "air_epa": 2.82602161640534, "wp": 0.726859092712402, "wpa": 0.1041459441185, "air_wpa": 0.0, "comp_air_wpa": 0.0, "qb_epa": 3.31088400189765, "xyac_epa": 0.933668728619663},
+          {"game_seconds_remaining": 277.0, "home_team": "KC", "yards_gained": 6.0, "comp_air_epa": -0.589795138221234, "air_epa": -0.589795138221234, "wp": 0.95893520116806, "wpa": -0.0114728808403015, "air_wpa": -0.0114728808403015, "comp_air_wpa": -0.0114728808403015, "qb_epa": -0.589795138221234, "xyac_epa": 0.955831974482307}
+        ]
+      headers:
+        Content-Type:
+          - application/json
+      status: 200 OK
+      code: 200
