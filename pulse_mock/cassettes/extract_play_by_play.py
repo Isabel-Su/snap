@@ -9,12 +9,17 @@ cols = [
 	"passer_player_name",
 	"comp_air_epa",
 	"air_epa",
+	"qb_epa",
+    "receiver_player_name",
+    "comp_yac_epa",
+    "yac_epa",
+    "xyac_epa",
 	"wp",
 	"wpa",
 	"air_wpa",
 	"comp_air_wpa",
-	"qb_epa",
-	"xyac_epa"
+    "yac_wpa",
+    "comp_yac_wpa",
 ]
 df[cols].to_csv("pulse_mock/cassettes/play_by_play_2025_filtered.csv", index=False)
 print("Saved to pulse_mock/cassettes/play_by_play_2025_filtered.csv")
