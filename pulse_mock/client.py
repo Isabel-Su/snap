@@ -343,6 +343,36 @@ class NFLMockClient(MockAPIClient):
         """
         super().__init__(cassette_dir, auto_load_all=auto_load_all)
         self.base_url = "http://localhost:1339"
+
+    def get_jhurts_games(self) -> List[Dict[str, Any]]:
+        """
+        Load all Jalen Hurts game YAML files from cassettes/jhurts_games, extract play-by-play JSON, and return as list of games.
+        Each returned dict has keys: 'game_name', 'plays' (list of dicts)
+        """
+        import glob
+        jhurts_games_dir = os.path.join(self.cassette_dir, 'jhurts_games')
+        if not os.path.exists(jhurts_games_dir):
+            return []
+        game_files = glob.glob(os.path.join(jhurts_games_dir, '*.yaml'))
+        games = []
+        for game_file in game_files:
+            with open(game_file, 'r', encoding='utf-8') as f:
+                cassette = yaml.safe_load(f)
+            # Find the first interaction with a response body
+            for interaction in cassette.get('interactions', []):
+                response = interaction.get('response', {})
+                body = response.get('body', None)
+                if body:
+                    try:
+                        plays = json.loads(body)
+                    except Exception:
+                        plays = []
+                    games.append({
+                        'game_name': os.path.basename(game_file),
+                        'plays': plays
+                    })
+                    break
+        return games
     
     def get_leagues(self) -> List[Dict[str, Any]]:
         """
