@@ -1,0 +1,25 @@
+# YAML for game_id: 2025_02_PHI_KC
+plays:
+  - game_seconds_remaining: 3595.0
+    home_team: KC
+    yards_gained: -3.0
+    comp_air_epa: 0.0
+    air_epa: null
+    wp: 0.433546245098114
+    wpa: -0.0272935926914215
+    air_wpa: null
+    comp_air_wpa: 0.0
+    qb_epa: -1.11595466686413
+    xyac_epa: null
+  - game_seconds_remaining: 3550.0
+    home_team: KC
+    yards_gained: 0.0
+    comp_air_epa: -0.972577557899058
+    air_epa: -0.972577557899058
+    wp: 0.406252652406693
+    wpa: -0.0251756608486176
+    air_wpa: 0.0
+    comp_air_wpa: 0.0
+    qb_epa: -0.743335555307567
+    xyac_epa: 1.25398030850538
+  # ...remaining plays omitted for brevity...

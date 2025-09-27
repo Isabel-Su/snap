@@ -1,0 +1,25 @@
+# YAML for game_id: 2025_03_LA_PHI
+plays:
+  - game_seconds_remaining: 3466.0
+    home_team: PHI
+    yards_gained: 5.0
+    comp_air_epa: 0.0383281941758469
+    air_epa: 0.0383281941758469
+    wp: 0.687869131565094
+    wpa: -0.0182322263717651
+    air_wpa: -0.0182322263717651
+    comp_air_wpa: -0.0182322263717651
+    qb_epa: 0.0383281941758469
+    xyac_epa: 0.588797952044336
+  - game_seconds_remaining: 3293.0
+    home_team: PHI
+    yards_gained: 0.0
+    comp_air_epa: 0.0
+    air_epa: -0.381550142541528
+    wp: 0.708180010318756
+    wpa: -0.0198805928230286
+    air_wpa: 0.0
+    comp_air_wpa: 0.0
+    qb_epa: -0.819071964360774
+    xyac_epa: 0.678147570424958
+  # ...remaining plays omitted for brevity...
