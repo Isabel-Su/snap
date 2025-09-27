@@ -27,6 +27,8 @@ if not is_interactive:
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FuncFormatter, NullFormatter
+import matplotlib.animation as animation
+import time
 
 plt.style.use("fivethirtyeight")
 
@@ -69,6 +71,33 @@ elapsed = [3600 - p['game_seconds_remaining'] for p in plays]
 tpi = [p.get('qb_epa', 0.0) for p in plays]
 ppi = [p.get('wpa', 0.0) for p in plays]
 
+# Ensure the points are ordered by elapsed time so the animated line
+# doesn't draw strange connectors between out-of-order points.
+combined = list(zip(elapsed, tpi, ppi))
+if combined:
+	combined.sort(key=lambda x: x[0])
+	elapsed, tpi, ppi = [list(col) for col in zip(*combined)]
+else:
+	elapsed, tpi, ppi = [], [], []
+
+# Pre-compute y-axis limits (with a small padding) so matplotlib does not
+# autoscale between frames and cause visual jumps during the animation.
+if tpi or ppi:
+	all_y = []
+	if tpi:
+		all_y.extend(tpi)
+	if ppi:
+		all_y.extend(ppi)
+	ymin = min(all_y)
+	ymax = max(all_y)
+	# If flat line, provide a reasonable default padding
+	if math.isclose(ymin, ymax):
+		pad = max(0.5, abs(ymin) * 0.1)
+	else:
+		pad = (ymax - ymin) * 0.12
+else:
+	ymin, ymax, pad = -1.0, 1.0, 0.5
+
 min_e, max_e = min(elapsed), max(elapsed)
 # Create tick range bounds
 start = int(math.floor(min_e / 60.0) * 60)
@@ -88,9 +117,7 @@ def mmss_formatter(x, pos=None):
 		return ''
 
 fig, ax = plt.subplots(figsize=(10, 4.5))
-ax.plot(elapsed, tpi, 'b-', label='Team Performance Index (TPI)')
-ax.plot(elapsed, ppi, 'r--', label='Player Performance Index (PPI)')
-
+# Prepare the figure and animated lines
 ax.set_title("Microeconomy Impact Chart")
 ax.set_xlabel("Game Time (MM:SS elapsed)")
 ax.set_ylabel("Performance Index")
@@ -100,27 +127,78 @@ ax.xaxis.set_major_formatter(FuncFormatter(mmss_formatter))
 ax.xaxis.set_minor_locator(MultipleLocator(minor_step))
 ax.xaxis.set_minor_formatter(NullFormatter())
 ax.set_xticks(range(start, end + 1, minor_step), minor=True)
+# Fix x/y limits before starting animation to avoid autoscale artifacts
+ax.set_xlim(start, end)
+ax.set_ylim(ymin - pad, ymax + pad)
 ax.tick_params(axis='x', which='major', length=7)
 ax.tick_params(axis='x', which='minor', length=3)
 plt.setp(ax.get_xticklabels(), rotation=45)
 ax.grid(alpha=0.3)
+
+# Start with empty lines and update them over time
+line_tpi, = ax.plot([], [], 'b-', label='Team Performance Index (TPI)')
+line_ppi, = ax.plot([], [], 'r--', label='Player Performance Index (PPI)')
+marker, = ax.plot([], [], 'ko', ms=6)
 ax.legend()
 
 output_path = 'impact_chart.png'
-plt.tight_layout()
-plt.savefig(output_path, dpi=150)
-print(f"Saved impact chart to {output_path}")
-print('Tick range (s elapsed):', start, 'to', end)
-print('Major tick step (s):', major_step, 'Minor tick step (s):', minor_step)
 
-# Only call plt.show() when running with an interactive backend. In headless
-# environments (Agg), plt.show() will either do nothing or raise errors if a
-# GUI backend isn't available, so we avoid calling it there.
+def init():
+	line_tpi.set_data([], [])
+	line_ppi.set_data([], [])
+	marker.set_data([], [])
+	return line_tpi, line_ppi, marker
+
+def update(i):
+	# update lines to include data up to index i
+	x = elapsed[: i + 1]
+	y1 = tpi[: i + 1]
+	y2 = ppi[: i + 1]
+	line_tpi.set_data(x, y1)
+	line_ppi.set_data(x, y2)
+	# place a marker on the most recent point of the primary series
+	if x:
+		marker.set_data(x[-1], y1[-1])
+	return line_tpi, line_ppi, marker
+
+# Animation: prefer interactive display; if headless, render updates and save final image
 current_backend = matplotlib.get_backend()
-if current_backend in matplotlib.rcsetup.interactive_bk:
+is_interactive = current_backend in matplotlib.rcsetup.interactive_bk
+
+frame_interval_ms = 2000  # milliseconds between frames (0.5s)
+
+if is_interactive:
+	# Turn on interactive mode so the GUI event loop processes between frames.
+	plt.ion()
+	ani = animation.FuncAnimation(
+		fig,
+		update,
+		frames=len(elapsed),
+		init_func=init,
+		interval=frame_interval_ms,
+		blit=False,
+		repeat=False,
+	)
 	try:
-		plt.show()
+		# Show window without blocking — we'll drive the event loop with plt.pause
+		plt.show(block=False)
+		# Let the animation run by yielding to the GUI event loop at the frame interval
+		for _ in range(len(elapsed)):
+			plt.pause(frame_interval_ms / 1000.0)
+		# Keep the window open briefly after finishing
+		plt.pause(5)
 	except Exception as e:
-		print(f"plt.show() failed with backend {current_backend}: {e}")
+		print(f"Interactive display failed with backend {current_backend}: {e}")
 else:
-	print(f"Not calling plt.show() because backend '{current_backend}' is non-interactive. Plot saved to {output_path}.")
+	# Headless: step through frames to simulate live updates, then save final image
+	for i in range(len(elapsed)):
+		update(i)
+		# draw on the Agg canvas
+		fig.canvas.draw()
+		# sleep to simulate live arrival (use same interval as interactive)
+		time.sleep(frame_interval_ms / 1000.0)
+	plt.tight_layout()
+	plt.savefig(output_path, dpi=150)
+	print(f"Saved impact chart to {output_path}")
+	print('Tick range (s elapsed):', start, 'to', end)
+	print('Major tick step (s):', major_step, 'Minor tick step (s):', minor_step)
