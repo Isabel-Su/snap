@@ -1,5 +1,5 @@
 """
-Setup configuration for pulse-mock package.
+Setup configuration for pulse-mock packageeee.
 """
 
 from setuptools import setup, find_packages
