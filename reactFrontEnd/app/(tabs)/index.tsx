@@ -1,204 +1,158 @@
-import React, { useRef, useState, useEffect } from 'react';
+import * as React from 'react';
 import {
-  View,
+  Animated,
+  Pressable,
   StyleSheet,
   Text,
-  Pressable,
-  Animated,
+  View,
   Dimensions,
-  Platform,
 } from 'react-native';
-import { ThemedText } from '@/components/themed-text';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const sidebarWidth = Math.min(360, Math.round(SCREEN_WIDTH * 0.45));
-  const anim = useRef(new Animated.Value(0)).current; // 0 closed, 1 open
+  const slide = React.useRef(new Animated.Value(-width * 0.6)).current; // sidebar hidden to left
 
-  useEffect(() => {
-    Animated.timing(anim, {
-      toValue: sidebarOpen ? 1 : 0,
-      duration: 300,
+  function openSidebar() {
+    Animated.timing(slide, {
+      toValue: 0,
+      duration: 250,
       useNativeDriver: true,
     }).start();
-  }, [sidebarOpen, anim]);
+  }
 
-  const translateX = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [sidebarWidth, 0],
-  });
+  function closeSidebar() {
+    Animated.timing(slide, {
+      toValue: -width * 0.6,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.titleContainer}>
-          <ThemedText type="title" style={styles.title}>
-            To Bet or Not to Bet?
-          </ThemedText>
-        </View>
-        
-        <Pressable
-          onPress={() => setSidebarOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Open sidebar"
-          style={styles.openButton}
-        >
-          <Text style={styles.openButtonText}>☰</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.content}>
-        <View
-          style={styles.grayBox}
-          accessibilityRole="image"
-          accessibilityLabel="Placeholder gray box"
-        />
-      </View>
-
-      {/* overlay when sidebar open */}
-      {sidebarOpen && (
-        <Pressable
-          style={styles.overlay}
-          onPress={() => setSidebarOpen(false)}
-          accessibilityLabel="Close sidebar overlay"
-        />
-      )}
-
-      <Animated.View
-        style={[
-          styles.sidebar,
-          { width: sidebarWidth, transform: [{ translateX }] },
-        ]}
-      >
+    <View style={styles.root}>
+      <Animated.View style={[styles.sidebar, { transform: [{ translateX: slide }] }]}>
         <View style={styles.sidebarHeader}>
-          <Text style={styles.sidebarTitle}>Saved Captions</Text>
-          <Pressable
-            onPress={() => setSidebarOpen(false)}
-            accessibilityRole="button"
-            accessibilityLabel="Close sidebar"
-            style={styles.closeButton}
-          >
-            <Text style={styles.closeButtonText}>✕</Text>
-          </Pressable>
+          <Text style={styles.sidebarTitle}>Saved captions</Text>
         </View>
-
-        <View style={styles.sidebarBody}>
-          <Text style={styles.sidebarText}>Placeholder sidebar content</Text>
+        {/* Placeholder list */}
+        <View style={styles.sidebarContent}>
+          <Text style={styles.sidebarItem}>Caption 1</Text>
+          <Text style={styles.sidebarItem}>Caption 2</Text>
+          <Text style={styles.sidebarItem}>Caption 3</Text>
         </View>
+        <Pressable style={styles.closeButton} onPress={closeSidebar} accessibilityLabel="Close sidebar">
+          <Text style={styles.closeText}>Close</Text>
+        </Pressable>
       </Animated.View>
+
+      <View style={styles.header}>
+        <Pressable onPress={openSidebar} style={styles.hamburger} accessibilityLabel="Open Saved captions">
+          <View style={styles.line} />
+          <View style={styles.line} />
+          <View style={styles.line} />
+        </Pressable>
+        <View style={styles.titleWrapper}>
+          <View style={styles.titleBackground} />
+          <Text style={styles.title}>to bet or not to bet?</Text>
+        </View>
+      </View>
+
+      <View style={styles.centerBox}>
+        <View style={styles.grayRect} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: '#000000ff',
+    backgroundColor: '#000',
   },
   header: {
-    width: '100%',
-    backgroundColor: '#000000ff',
-    paddingVertical: 14,
+    height: 80,
     paddingHorizontal: 16,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'row',
   },
-
-  // Title color (To Bet or Not to Bet?)
-  title: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  
-  // Background for title
-  titleContainer: {
-    backgroundColor: 'rgba(41, 41, 41, 0.83)',
-    paddingHorizontal: 900,
-    paddingVertical: 10,
-    paddingTop: 0,
-    paddingBottom: 14,
-    borderRadius: 0,
-  },
-  openButton: {
-    position: 'absolute',
-    right: 12,
-    top: Platform.select({ ios: 12, android: 12, default: 12 }),
+  hamburger: {
     padding: 8,
   },
-  openButtonText: {
-    color: '#fff',
-    fontSize: 20,
+  line: {
+    width: 28,
+    height: 3,
+    backgroundColor: '#fff',
+    marginVertical: 3,
+    borderRadius: 2,
   },
-  content: {
+  titleWrapper: {
     flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
   },
-  grayBox: {
-    width: 720,
-    maxWidth: '95%',
-    height: 420,
-    backgroundColor: '#696969',
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-
-  /* Sidebar */
-  sidebar: {
+  titleBackground: {
     position: 'absolute',
-    top: 0,
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#696969',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 50,
+    backgroundColor: '#2f2f2f',
+    height: 40,
+    width: '100%',
+    borderRadius: 6,
+    opacity: 0.95,
   },
-  sidebarHeader: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.15)',
-  },
-  sidebarTitle: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  closeButton: {
-    padding: 6,
-  },
-  closeButtonText: {
+  title: {
     color: '#fff',
     fontSize: 18,
+    fontWeight: '700',
+    paddingHorizontal: 12,
   },
-  sidebarBody: {
-    padding: 12,
+  centerBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sidebarText: {
-    color: '#fff',
+  grayRect: {
+    width: '80%',
+    height: 300,
+    backgroundColor: '#333',
+    borderRadius: 12,
   },
-
-  overlay: {
+  sidebar: {
     position: 'absolute',
+    left: 0,
     top: 0,
     bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    zIndex: 40,
+    width: width * 0.6,
+    backgroundColor: '#111',
+    shadowColor: '#000',
+    shadowOpacity: 0.7,
+    shadowRadius: 8,
+    elevation: 10,
+    paddingTop: 40,
+    zIndex: 100,
+  },
+  sidebarHeader: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  sidebarTitle: {
+    color: '#ddd',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  sidebarContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  sidebarItem: {
+    color: '#bbb',
+    paddingVertical: 8,
+  },
+  closeButton: {
+    marginTop: 24,
+    padding: 12,
+    alignSelf: 'center',
+  },
+  closeText: {
+    color: '#fff',
   },
 });
