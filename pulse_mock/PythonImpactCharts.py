@@ -1,9 +1,23 @@
-import os
+# python file: pulse_mock/PythonImpactCharts.py
+
 import math
 import matplotlib
+matplotlib.use("Agg")              # headless backend
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator, FuncFormatter, NullFormatter
+from io import BytesIO
+import math
+import matplotlib
+matplotlib.use("Agg")  # headless backend
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FuncFormatter, NullFormatter
 import matplotlib.animation as animation
+from matplotlib.animation import PillowWriter
+from io import BytesIO
+from flask import Flask, send_file
+import os
+import tempfile
+import threading
 
 plt.style.use("fivethirtyeight")
 
@@ -36,6 +50,7 @@ plays = [
 ]
 
 # --- Formatting helpers ---
+
 def format_mmss(sec):
     m = int(sec) // 60
     s = int(sec) % 60
@@ -61,54 +76,128 @@ end = int(math.ceil(max_e / 60.0) * 60)
 if start == end:
     end = start + 60
 
-# --- Build plot ---
-fig, ax = plt.subplots(figsize=(10, 4.5))
-ax.set_title("Microeconomy Impact Chart")
-ax.set_xlabel("Game Time (MM:SS elapsed)")
-ax.set_ylabel("Performance Index")
-ax.set_xlim(start, end)
-ax.set_ylim(ymin - pad, ymax + pad)
+app = Flask(__name__)
 
-ax.xaxis.set_major_locator(MultipleLocator(300))
-ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: format_mmss(int(x))))
-ax.xaxis.set_minor_locator(MultipleLocator(60))
-ax.xaxis.set_minor_formatter(NullFormatter())
-ax.tick_params(axis='x', which='major', length=7)
-ax.tick_params(axis='x', which='minor', length=3)
-plt.setp(ax.get_xticklabels(), rotation=45)
-ax.grid(alpha=0.3)
 
-line_tpi, = ax.plot([], [], 'b-', label='Team Performance Index (TPI)')
-line_ppi, = ax.plot([], [], 'r--', label='Player Performance Index (PPI)')
-marker, = ax.plot([], [], 'ko', ms=6)
-ax.legend()
+def render_impact_chart_bytes() -> BytesIO:
+    fig, ax = plt.subplots(figsize=(10, 4.5))
+    ax.set_title("Microeconomy Impact Chart")
+    ax.set_xlabel("Game Time (MM:SS elapsed)")
+    ax.set_ylabel("Performance Index")
+    ax.set_xlim(start, end)
+    ax.set_ylim(ymin - pad, ymax + pad)
 
-# --- Animation functions ---
-def init():
-    line_tpi.set_data([], [])
-    line_ppi.set_data([], [])
-    marker.set_data([], [])
-    return line_tpi, line_ppi, marker
+    ax.xaxis.set_major_locator(MultipleLocator(300))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: format_mmss(int(x))))
+    ax.xaxis.set_minor_locator(MultipleLocator(60))
+    ax.xaxis.set_minor_formatter(NullFormatter())
+    ax.tick_params(axis='x', which='major', length=7)
+    ax.tick_params(axis='x', which='minor', length=3)
+    plt.setp(ax.get_xticklabels(), rotation=45)
+    ax.grid(alpha=0.3)
 
-def update(i):
-    x = elapsed[: i + 1]
-    y1 = tpi[: i + 1]
-    y2 = ppi[: i + 1]
-    line_tpi.set_data(x, y1)
-    line_ppi.set_data(x, y2)
-    if x:
-        marker.set_data([x[-1]], [y1[-1]])
-    return line_tpi, line_ppi, marker
+    ax.plot(elapsed, tpi, 'b-', label='Team Performance Index (TPI)')
+    ax.plot(elapsed, ppi, 'r--', label='Player Performance Index (PPI)')
+    if elapsed:
+        ax.plot([elapsed[-1]], [tpi[-1]], 'ko', ms=6)
+    ax.legend()
 
-# --- Run animation (fast enough) ---
-ani = animation.FuncAnimation(
-    fig,
-    update,
-    frames=len(elapsed),
-    init_func=init,
-    interval=400,   # 0.4 seconds per frame
-    blit=False,
-    repeat=False
-)
+    buf = BytesIO()
+    fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    buf.seek(0)
+    return buf
 
-plt.show()
+
+@app.route('/impact_chart')
+def impact_chart():
+    buf = render_impact_chart_bytes()
+    return send_file(buf, mimetype='image/png', as_attachment=False, download_name='impact_chart.png')
+
+
+# --- Animated GIF endpoint (cached) ---
+_gif_lock = threading.Lock()
+_gif_cache_path = os.path.join(os.path.dirname(__file__), 'impact_chart.gif')
+
+def generate_impact_gif(path: str, interval_ms: int = 300):
+    """Generate an animated GIF at `path`. Overwrites existing file."""
+    fig, ax = plt.subplots(figsize=(10, 4.5))
+    ax.set_title("Microeconomy Impact Chart")
+    ax.set_xlabel("Game Time (MM:SS elapsed)")
+    ax.set_ylabel("Performance Index")
+    ax.set_xlim(start, end)
+    ax.set_ylim(ymin - pad, ymax + pad)
+
+    ax.xaxis.set_major_locator(MultipleLocator(300))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: format_mmss(int(x))))
+    ax.xaxis.set_minor_locator(MultipleLocator(60))
+    ax.xaxis.set_minor_formatter(NullFormatter())
+    plt.setp(ax.get_xticklabels(), rotation=45)
+    ax.grid(alpha=0.3)
+
+    line_tpi, = ax.plot([], [], 'b-', label='Team Performance Index (TPI)')
+    line_ppi, = ax.plot([], [], 'r--', label='Player Performance Index (PPI)')
+    marker, = ax.plot([], [], 'ko', ms=6)
+    ax.legend()
+
+    def init():
+        line_tpi.set_data([], [])
+        line_ppi.set_data([], [])
+        marker.set_data([], [])
+        return line_tpi, line_ppi, marker
+
+    def update(i):
+        x = elapsed[: i + 1]
+        y1 = tpi[: i + 1]
+        y2 = ppi[: i + 1]
+        line_tpi.set_data(x, y1)
+        line_ppi.set_data(x, y2)
+        if x:
+            marker.set_data([x[-1]], [y1[-1]])
+        return line_tpi, line_ppi, marker
+
+    frames = len(elapsed)
+    ani = animation.FuncAnimation(fig, update, frames=frames, init_func=init, interval=interval_ms, blit=False, repeat=False)
+
+    # fps for PillowWriter: frames per second
+    fps = max(1, int(1000 / interval_ms))
+    writer = PillowWriter(fps=fps)
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    ani.save(path, writer=writer)
+    plt.close(fig)
+
+
+@app.route('/impact_chart.gif')
+def impact_chart_gif():
+    """Return a cached animated GIF; generate it on first request."""
+    # If cache exists, return it
+    if os.path.exists(_gif_cache_path):
+        return send_file(_gif_cache_path, mimetype='image/gif')
+
+    # Prevent concurrent generation
+    with _gif_lock:
+        # Double-check after acquiring lock
+        if os.path.exists(_gif_cache_path):
+            return send_file(_gif_cache_path, mimetype='image/gif')
+
+        # Generate GIF (may take a moment)
+        try:
+            # Use temporary file then atomically rename
+            fd, tmp_path = tempfile.mkstemp(suffix='.gif', dir=os.path.dirname(_gif_cache_path))
+            os.close(fd)
+            generate_impact_gif(tmp_path, interval_ms=300)
+            os.replace(tmp_path, _gif_cache_path)
+            return send_file(_gif_cache_path, mimetype='image/gif')
+        except Exception:
+            # cleanup tmp if exists
+            try:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+            except Exception:
+                pass
+            raise
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000)

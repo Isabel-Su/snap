@@ -6,6 +6,8 @@ import {
   Text,
   View,
   Dimensions,
+  Platform,
+  Image,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -82,7 +84,14 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.centerBox}>
-        <View style={styles.grayRect} />
+          <Image
+            source={{
+              uri:
+                'http://128.61.124.100:8000/impact_chart.gif'
+            }}
+            style={styles.chartImage}
+            resizeMode="contain"
+          />
       </View>
     </View>
   );
@@ -133,11 +142,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  grayRect: {
+  chartImage: {
     width: '80%',
     height: 300,
-    backgroundColor: '#333',
     borderRadius: 12,
+    backgroundColor: '#333',
   },
   sidebar: {
     position: 'absolute',
