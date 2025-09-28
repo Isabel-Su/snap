@@ -7,7 +7,6 @@ Easily simulate API responses for testing and development.
 
 from .client import MockAPIClient, NFLMockClient
 from .exceptions import CassetteNotFoundError, RequestNotFoundError, InvalidCassetteError
-from .server import create_app
 
 __version__ = "1.0.0"
 __all__ = [

@@ -1,218 +1,242 @@
-"""
-Lightweight REST server that exposes NFLMockClient methods as HTTP endpoints.
+# python file: pulse_mock/PythonImpactCharts.py
 
-This server provides a REST API interface to all the functionality available
-in the NFLMockClient, making it easy to access NFL data through HTTP requests.
+import math
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator, FuncFormatter, NullFormatter
+import matplotlib.animation as animation
+from matplotlib.animation import PillowWriter
+from io import BytesIO
+from flask import Flask, send_file
+from flask import jsonify, make_response, Response, request
+import time
+import json
 
-Usage:
-    from pulse_mock.server import create_app
-    
-    app = create_app()
-    app.run(host='localhost', port=1339, debug=True)
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import analysis
+from pulse_mock.client import NFLMockClient
+import numpy as np
 
-Or run directly:
-    python -m pulse_mock.server
-"""
+matplotlib.use("Agg")  # headless backend
 
-from flask import Flask, jsonify, request
-from typing import Dict, Any, Optional
-import traceback
+plt.style.use("fivethirtyeight")
+# Attempt to register the user's local "Industry" font files so matplotlib
+# text uses the same typography. This is defensive: if the font files are
+# not present the code will quietly fall back to Matplotlib's defaults.
+try:
+    import matplotlib.font_manager as fm
+    _candidate_paths = [
+        '/Users/riasharma/Downloads/Industry Test/IndustryDemi-Regular.otf',
+        '/Users/riasharma/Downloads/Industry Test/IndustryDemi-Bold.otf',
+        '/Users/riasharma/Downloads/Industry Test/Industry-Medi.otf',
+    ]
+    _added = False
+    for _p in _candidate_paths:
+        if os.path.exists(_p):
+            try:
+                fm.fontManager.addfont(_p)
+                _added = True
+            except Exception:
+                # non-fatal if addfont fails for any file
+                pass
+    if _added:
+        # Prefer the Industry family for sans-serif text; include common
+        # fallbacks so labels still render if exact names differ.
+        matplotlib.rcParams['font.family'] = 'sans-serif'
+        matplotlib.rcParams['font.sans-serif'] = [
+            'Industry Medi',
+            'IndustryDemi',
+            'IndustryDemi-Bold',
+            'DejaVu Sans',
+        ]
+except Exception:
+    # Don't let font registration prevent the module from importing.
+    pass
 
-from .client import NFLMockClient
-from .exceptions import CassetteNotFoundError, RequestNotFoundError, InvalidCassetteError
+
+# --- Sample plays data ---
+def get_data(player: str = None):
+    client = NFLMockClient()
+    ppi, tpi = analysis.compute_ppi_tpi_from_plays(client.get_game_data()[2]['plays'])
+    ppi_dict = {}
+    for player_entry in ppi:
+        for player_name, arr in player_entry.items():
+            ppi_dict[player_name] = arr
+    elapsed = (3600 - tpi[:,0]).tolist()
+    tpi_vals = tpi[:,1].tolist()
+    # Select player PPI
+    if player and player in ppi_dict:
+        ppi_vals = ppi_dict[player][:,1].tolist()
+    else:
+        first_player = next(iter(ppi_dict)) if ppi_dict else None
+        ppi_vals = ppi_dict[first_player][:,1].tolist() if first_player else [0]*len(elapsed)
+    return elapsed, tpi_vals, ppi_vals
+
+# Ensure chronological order
+elapsed, tpi_vals, ppi_vals = get_data() # need to put some get request in this func call
+combined = sorted(zip(elapsed, tpi_vals, ppi_vals), key=lambda x: x[0])
+elapsed, tpi_vals, ppi_vals = map(list, zip(*combined))
+
+# Axis ranges
+all_y = tpi_vals + ppi_vals
+ymin, ymax = min(all_y), max(all_y)
+pad = (ymax - ymin) * 0.12 if ymax != ymin else 0.5
+
+min_e, max_e = min(elapsed), max(elapsed)
+start = int(math.floor(min_e / 60.0) * 60)
+end = int(math.ceil(max_e / 60.0) * 60)
+if start == end:
+    end = start + 60
+
+# --- Formatting helpers ---
+def format_mmss(sec):
+    m = int(sec) // 60
+    s = int(sec) % 60
+all_y = tpi_vals + ppi_vals
+ymin, ymax = min(all_y), max(all_y)
+
+app = Flask(__name__)
+
+def render_impact_chart_bytes() -> BytesIO:
+    fig, ax = plt.subplots(figsize=(10, 4.5))
+    # leave extra space at the bottom so x-axis labels don't get cropped
+    ax.plot(elapsed, tpi_vals, 'b-', label='Team Performance Index (TPI)')
+    ax.plot(elapsed, ppi_vals, 'r--', label='Player Performance Index (PPI)')
+    if elapsed:
+        ax.plot([elapsed[-1]], [tpi_vals[-1]], 'ko', ms=6)
+    ax.set_xlim(start, end)
+    ax.set_ylim(ymin - pad, ymax + pad)
+
+    ax.xaxis.set_major_locator(MultipleLocator(300))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: format_mmss(int(x))))
+    ax.xaxis.set_minor_locator(MultipleLocator(60))
+    ax.xaxis.set_minor_formatter(NullFormatter())
+    ax.tick_params(axis='x', which='major', length=7)
+    ax.tick_params(axis='x', which='minor', length=3)
+
+    ax.plot(elapsed, tpi_vals, 'b-', label='Team Performance Index (TPI)')
+    ax.plot(elapsed, ppi_vals, 'r--', label='Player Performance Index (PPI)')
+    if elapsed:
+        ax.plot([elapsed[-1]], [tpi_vals[-1]], 'ko', ms=6)
+    ax.legend()
+
+    buf = BytesIO()
+    # save without tight bbox; we've already made room via subplots_adjust
+    fig.savefig(buf, format='png', dpi=150)
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+@app.route('/impact_chart')
+def impact_chart():
+    buf = render_impact_chart_bytes()
+    return send_file(buf, mimetype='image/png', as_attachment=False, download_name='impact_chart.png')
 
 
-def create_app(cassette_dir: Optional[str] = None) -> Flask:
+# --- Animated GIF endpoint (cached) ---
+_gif_cache_path = os.path.join(os.path.dirname(__file__), 'impact_chart.gif')
+
+def generate_impact_gif(path: str, interval_ms: int = 300):
+    """Generate an animated GIF at `path`. Overwrites existing file."""
+    fig, ax = plt.subplots(figsize=(10, 4.5))
+    # ensure bottom margin so x-axis labels are visible in GIF frames
+    fig.subplots_adjust(bottom=0.22)
+    ax.set_title("Microeconomy Impact Chart")
+    ax.set_xlabel("Game Time (MM:SS elapsed)")
+    ax.set_ylabel("Performance Index")
+    ax.set_xlim(start, end)
+    ax.set_ylim(ymin - pad, ymax + pad)
+
+    ax.xaxis.set_major_locator(MultipleLocator(300))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: format_mmss(int(x))))
+    ax.xaxis.set_minor_locator(MultipleLocator(60))
+    ax.xaxis.set_minor_formatter(NullFormatter())
+    plt.setp(ax.get_xticklabels(), rotation=45)
+    ax.grid(alpha=0.3)
+
+    line_tpi, = ax.plot([], [], 'b-', label='Team Performance Index (TPI)')
+    line_ppi, = ax.plot([], [], 'r--', label='Player Performance Index (PPI)')
+    marker, = ax.plot([], [], 'ko', ms=6)
+    ax.legend()
+
+    def init():
+        line_tpi.set_data([], [])
+        line_ppi.set_data([], [])
+        marker.set_data([], [])
+        return line_tpi, line_ppi, marker
+
+    def update(i):
+        x = elapsed[: i + 1]
+        y1 = tpi_vals[: i + 1]
+        y2 = ppi_vals[: i + 1]
+        line_tpi.set_data(x, y1)
+        line_ppi.set_data(x, y2)
+        if x:
+            marker.set_data([x[-1]], [y1[-1]])
+        return line_tpi, line_ppi, marker
+
+    frames = len(elapsed)
+    ani = animation.FuncAnimation(fig, update, frames=frames, init_func=init, interval=interval_ms, blit=False, repeat=False)
+
+    # fps for PillowWriter: frames per second
+    fps = max(1, int(1000 / interval_ms))
+    writer = PillowWriter(fps=fps)
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    ani.save(path, writer=writer)
+    plt.close(fig)
+
+@app.route('/impact_chart.json')
+def impact_chart_json():
+    """Return the chart data as JSON so frontends (web) can render natively.
+
+    Adds a permissive CORS header for convenience during development.
     """
-    Create and configure the Flask application.
-    
-    Args:
-        cassette_dir: Directory containing VCR cassette files
-        
-    Returns:
-        Configured Flask application
+    payload = {
+        'elapsed': elapsed,
+        'tpi': tpi_vals,
+        'ppi': ppi_vals,
+        'start': start,
+        'end': end,
+        'ymin': ymin - pad,
+        'ymax': ymax + pad
+    }
+    resp = make_response(jsonify(payload))
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
+
+
+@app.route('/impact_chart/stream')
+def impact_chart_stream():
+    """Server-Sent Events endpoint that streams chart points one at a time.
+
+    Query params:
+      interval_ms=<int>  -> how many milliseconds to wait between points (default 500)
     """
-    app = Flask(__name__)
-    
-    # Initialize the NFLMockClient
-    client = NFLMockClient(cassette_dir=cassette_dir, auto_load_all=True)
-    
-    @app.errorhandler(RequestNotFoundError)
-    def handle_request_not_found(e):
-        return jsonify({'error': 'Not found', 'message': str(e)}), 404
-    
-    @app.errorhandler(CassetteNotFoundError)
-    def handle_cassette_not_found(e):
-        return jsonify({'error': 'Cassette not found', 'message': str(e)}), 500
-    
-    @app.errorhandler(InvalidCassetteError)
-    def handle_invalid_cassette(e):
-        return jsonify({'error': 'Invalid cassette', 'message': str(e)}), 500
-    
-    @app.errorhandler(Exception)
-    def handle_general_error(e):
-        return jsonify({
-            'error': 'Internal server error', 
-            'message': str(e),
-            'traceback': traceback.format_exc()
-        }), 500
-    
-    # Health check endpoint
-    @app.route('/health')
-    def health_check():
-        """Health check endpoint."""
-        return jsonify({
-            'status': 'healthy',
-            'loaded_cassettes': client.loaded_cassettes,
-            'total_interactions': len(client.interactions)
-        })
-    
-    # API Info endpoint
-    @app.route('/v1')
-    def api_info():
-        """API information and available endpoints."""
-        return jsonify({
-            'name': 'NFL Mock API',
-            'version': '1.0',
-            'description': 'Mock NFL API server using VCR cassettes',
-            'endpoints': {
-                'leagues': '/v1/leagues',
-                'teams': '/v1/leagues/{league}/teams',
-                'team_details': '/v1/leagues/{league}/teams/{team_id}',
-                'team_players': '/v1/leagues/{league}/teams/{team_id}/players',
-                'team_games': '/v1/leagues/{league}/teams/{team_id}/games',
-                'team_stats': '/v1/leagues/{league}/teams/{team_id}/stats',
-                'players': '/v1/leagues/{league}/players',
-                'player_details': '/v1/leagues/{league}/players/{player_id}',
-                'games': '/v1/leagues/{league}/games',
-                'game_details': '/v1/leagues/{league}/games/{game_id}',
-                'search_teams': '/v1/leagues/{league}/teams/search?name={name}',
-                'search_players': '/v1/leagues/{league}/players/search?name={name}',
-                'filter_players': '/v1/leagues/{league}/players?position={position}&team_id={team_id}'
-            },
-            'loaded_cassettes': client.loaded_cassettes,
-            'total_interactions': len(client.interactions)
-        })
-    
-    # League endpoints
-    @app.route('/v1/leagues')
-    def get_leagues():
-        """Get all available leagues."""
-        return jsonify(client.get_leagues())
-    
-    # Team endpoints
-    @app.route('/v1/leagues/<league>/teams')
-    def get_teams(league: str):
-        """Get all teams in a league."""
-        return jsonify(client.get_teams(league))
-    
-    @app.route('/v1/leagues/<league>/teams/search')
-    def search_teams(league: str):
-        """Search for teams by name."""
-        name = request.args.get('name')
-        if not name:
-            return jsonify({'error': 'Missing required parameter: name'}), 400
-        
-        team = client.find_team_by_name(name, league)
-        if team:
-            return jsonify(team)
-        else:
-            return jsonify({'error': 'Team not found', 'searched_name': name}), 404
-    
-    @app.route('/v1/leagues/<league>/teams/<team_id>')
-    def get_team(league: str, team_id: str):
-        """Get a specific team by ID."""
-        return jsonify(client.get_team(team_id, league))
-    
-    @app.route('/v1/leagues/<league>/teams/<team_id>/players')
-    def get_team_players(league: str, team_id: str):
-        """Get all players for a specific team."""
-        return jsonify(client.get_team_players(team_id, league))
-    
-    @app.route('/v1/leagues/<league>/teams/<team_id>/games')
-    def get_team_games(league: str, team_id: str):
-        """Get all games for a specific team."""
-        return jsonify(client.get_team_games(team_id, league))
-    
-    @app.route('/v1/leagues/<league>/teams/<team_id>/stats')
-    def get_team_stats(league: str, team_id: str):
-        """Get statistics for a specific team."""
-        return jsonify(client.get_team_statistics(team_id, league))
-    
-    # Player endpoints
-    @app.route('/v1/leagues/<league>/players')
-    def get_players(league: str):
-        """Get all players in a league, with optional filtering."""
-        position = request.args.get('position')
-        team_id = request.args.get('team_id')
-        
-        if position:
-            return jsonify(client.get_players_by_position(position, team_id, league))
-        else:
-            return jsonify(client.get_all_players(league))
-    
-    @app.route('/v1/leagues/<league>/players/search')
-    def search_players(league: str):
-        """Search for players by name."""
-        name = request.args.get('name')
-        if not name:
-            return jsonify({'error': 'Missing required parameter: name'}), 400
-        
-        players = client.find_player_by_name(name, league)
-        return jsonify(players)
-    
-    @app.route('/v1/leagues/<league>/players/<player_id>')
-    def get_player(league: str, player_id: str):
-        """Get a specific player by ID."""
-        return jsonify(client.get_player(player_id, league))
-    
-    # Game endpoints
-    @app.route('/v1/leagues/<league>/games')
-    def get_games(league: str):
-        """Get all games in a league."""
-        return jsonify(client.get_all_games(league))
-    
-    @app.route('/v1/leagues/<league>/games/<game_id>')
-    def get_game(league: str, game_id: str):
-        """Get a specific game by ID."""
-        return jsonify(client.get_game(game_id, league))
-    
-    # Special endpoints for game relationships
-    @app.route('/v1/leagues/<league>/teams/<team1_id>/vs/<team2_id>')
-    def get_games_between_teams(league: str, team1_id: str, team2_id: str):
-        """Get all games between two specific teams."""
-        return jsonify(client.get_games_between_teams(team1_id, team2_id, league))
-    
-    return app
-
-
-def main():
-    """Run the server directly."""
-    import argparse
-    import os
-    
-    parser = argparse.ArgumentParser(description='Run the NFL Mock API server')
-    parser.add_argument('--host', default='localhost', help='Host to bind to (default: localhost)')
-    parser.add_argument('--port', type=int, default=1339, help='Port to bind to (default: 1339)')
-    parser.add_argument('--debug', action='store_true', help='Run in debug mode')
-    parser.add_argument('--cassette-dir', help='Directory containing VCR cassette files')
-    
-    args = parser.parse_args()
-    
-    # Create the Flask app
-    app = create_app(cassette_dir=args.cassette_dir)
-    
-    print(f"Starting NFL Mock API server on http://{args.host}:{args.port}")
-    print(f"API documentation available at: http://{args.host}:{args.port}/v1")
-    print(f"Health check available at: http://{args.host}:{args.port}/health")
-    
+    interval_raw = request.args.get('interval_ms', '500')
     try:
-        app.run(host=args.host, port=args.port, debug=args.debug)
-    except KeyboardInterrupt:
-        print("\nServer stopped by user")
-    except Exception as e:
-        print(f"Error starting server: {e}")
+        interval_ms = int(interval_raw)
+    except Exception:
+        interval_ms = 500
+    interval_ms = max(50, min(20000, interval_ms))
 
+    def generate():
+        for i in range(len(elapsed)):
+            payload = {'i': i, 'elapsed': elapsed[i], 'tpi': tpi_vals[i], 'ppi': ppi_vals[i]}
+            yield f"data: {json.dumps(payload)}\n\n"
+            time.sleep(interval_ms / 1000.0)
+        # final event to indicate completion
+        yield "event: done\ndata: {}\n\n"
 
+    headers = {
+        'Cache-Control': 'no-cache',
+        'Content-Type': 'text/event-stream',
+        'Access-Control-Allow-Origin': '*',
+    }
+    return Response(generate(), headers=headers)
 if __name__ == '__main__':
-    main()
+    app.run(host='0.0.0.0', port=8000)
+
+
