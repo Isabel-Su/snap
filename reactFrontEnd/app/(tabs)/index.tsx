@@ -18,6 +18,7 @@ export default function HomeScreen() {
   const slide = React.useRef(new Animated.Value(sidebarWidth)).current;
   const backdrop = React.useRef(new Animated.Value(0)).current;
   const [isOpen, setIsOpen] = React.useState(false);
+  const [chartMode, setChartMode] = React.useState<'impact' | 'scroller'>('impact');
 
   function openSidebar() {
     setIsOpen(true);
@@ -73,11 +74,21 @@ export default function HomeScreen() {
       </Animated.View>
 
       <View style={styles.header}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Pressable onPress={() => setChartMode('impact')} style={[styles.toggleButton, chartMode === 'impact' ? styles.toggleButtonActive : null]}>
+            <Text style={[styles.toggleText, chartMode === 'impact' ? styles.toggleTextActive : null]}>Impact</Text>
+          </Pressable>
+          <Pressable onPress={() => setChartMode('scroller')} style={[styles.toggleButton, chartMode === 'scroller' ? styles.toggleButtonActive : null]}>
+            <Text style={[styles.toggleText, chartMode === 'scroller' ? styles.toggleTextActive : null]}>Scroller</Text>
+          </Pressable>
+        </View>
+
         <View style={styles.titleWrapper}>
           <View style={styles.titleBackground} />
           <Text style={styles.title}>To Bet or Not to Bet?</Text>
         </View>
-        <Pressable onPress={() => (isOpen ? closeSidebar() : openSidebar())} style={styles.hamburgerRight} accessibilityLabel="Toggle Saved captions">
+
+        <Pressable onPress={() => (isOpen ? closeSidebar() : openSidebar())} style={[styles.hamburgerRight, { marginLeft: 12 }]} accessibilityLabel="Toggle Saved captions">
           <View style={styles.line} />
           <View style={styles.line} />
           <View style={styles.line} />
@@ -86,18 +97,194 @@ export default function HomeScreen() {
 
       <View style={styles.centerBox}>
         {Platform.OS === 'web' ? (
-          <WebChart />
+          chartMode === 'impact' ? <WebChart /> : <WebScroller />
         ) : (
-          <Image
-            source={{
-              uri: 'http://128.61.124.100:8000/impact_chart.gif'
-            }}
-            style={styles.chartImage}
-            resizeMode="contain"
-          />
+          chartMode === 'impact' ? (
+            <Image
+              source={{ uri: 'http://128.61.124.100:8000/impact_chart.gif' }}
+              style={styles.chartImage}
+              resizeMode="contain"
+            />
+          ) : (
+            <Image
+              source={{ uri: 'http://128.61.124.100:8001/scroller.gif' }}
+              style={styles.chartImage}
+              resizeMode="contain"
+            />
+          )
         )}
       </View>
     </View>
+  );
+}
+
+function WebScroller() {
+  const [points, setPoints] = useState<Array<any>>([]);
+  const [meta, setMeta] = useState<any | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [presets, setPresets] = useState<string[]>([]);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const evtRef = React.useRef<EventSource | null>(null);
+
+  // fetch meta + presets, then open SSE stream for selected preset
+  useEffect(() => {
+    fetch('http://localhost:8001/scroller.json')
+      .then((r) => r.json())
+      .then((data) => {
+        setMeta(data);
+        if (Array.isArray(data.presets)) {
+          setPresets(data.presets);
+          const initial = data.presets[data.active] || data.presets[0];
+          setSelectedPreset(initial || null);
+        }
+      })
+      .catch(() => setMeta(null));
+    return () => {
+      // noop
+    };
+  }, []);
+
+  // open EventSource whenever selectedPreset changes
+  useEffect(() => {
+    if (!selectedPreset) return;
+    // reset points for new preset
+    setPoints([]);
+    // close previous
+    try {
+      if (evtRef.current) {
+        evtRef.current.close();
+      }
+    } catch (e) {}
+
+    const url = `http://localhost:8001/scroller/stream?interval_ms=400&preset=${encodeURIComponent(selectedPreset)}`;
+    const evt = new EventSource(url);
+    evtRef.current = evt;
+    evt.onopen = () => setConnected(true);
+    evt.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        setPoints((p) => [...p, d]);
+      } catch (err) {
+        // ignore
+      }
+    };
+    evt.addEventListener('done', () => {
+      try {
+        evt.close();
+      } catch (e) {}
+      setConnected(false);
+    });
+    evt.onerror = () => {
+      setConnected(false);
+      try {
+        evt.close();
+      } catch (e) {}
+    };
+    return () => {
+      try {
+        evt.close();
+      } catch (e) {}
+      setConnected(false);
+    };
+  }, [selectedPreset]);
+
+  if (!meta) {
+    return <View style={[styles.chartImage, { alignItems: 'center', justifyContent: 'center' }]}><Text style={{ color: '#ddd' }}>Connecting…</Text></View>;
+  }
+
+  const w = 800;
+  const h = 300;
+  const pad = 40;
+  const xScale = (v: number) => pad + ((v - meta.start) / (meta.end - meta.start)) * (w - pad * 2);
+  const yScale = (v: number) => h - pad - ((v - meta.ymin) / (meta.ymax - meta.ymin)) * (h - pad * 2);
+
+  const primaryPath = points.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${xScale(pt.elapsed)} ${yScale(pt.primary)}`).join(' ');
+
+  const formatMMSS = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  // x-axis ticks: major every 300s, minor every 60s
+  const xMajor: number[] = [];
+  for (let t = meta.start; t <= meta.end; t += 300) xMajor.push(t);
+  const xMinor: number[] = [];
+  for (let t = meta.start; t <= meta.end; t += 60) xMinor.push(t);
+
+  // y-axis ticks (5 ticks)
+  const yTicks: number[] = [];
+  const yCount = 5;
+  for (let i = 0; i < yCount; i++) {
+    yTicks.push(meta.ymin + (i / (yCount - 1)) * (meta.ymax - meta.ymin));
+  }
+
+  return (
+    <div style={{ width: '80%', maxWidth: 900 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <label style={{ color: '#ddd', fontSize: 13 }}>Player:</label>
+          <select value={selectedPreset || ''} onChange={(e) => setSelectedPreset(e.target.value)} style={{ padding: '6px 8px', borderRadius: 6, background: '#1c1c1c', color: '#ddd', border: '1px solid #3a3a3a' }}>
+            {presets.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: connected ? '#3ee86a' : '#c34f4f' }} />
+          <div style={{ color: '#ddd', fontSize: 13 }}>{connected ? 'Live' : 'Disconnected'}</div>
+        </div>
+      </div>
+      <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ backgroundColor: '#111', borderRadius: 8 }}>
+        <rect x="0" y="0" width={w} height={h} fill="#111" />
+        {/* Chart title */}
+        <text x={w / 2} y={20} textAnchor="middle" fontSize={18} fontWeight={700} fill="#fff">Player Impact</text>
+
+        {/* grid lines and y ticks */}
+        <g>
+          {yTicks.map((yt, i) => {
+            const yy = yScale(yt);
+            return (
+              <g key={`y${i}`}>
+                <line x1={pad} x2={w - pad} y1={yy} y2={yy} stroke="#2a2a2a" strokeWidth={1} />
+                <text x={8} y={yy + 4} fontSize={12} fill="#bbb">{yt.toFixed(2)}</text>
+              </g>
+            );
+          })}
+        </g>
+
+        {/* x-axis grid & ticks */}
+        <g>
+          {xMinor.map((xm, i) => {
+            const xx = xScale(xm);
+            return <line key={`xm${i}`} x1={xx} x2={xx} y1={h - pad + 4} y2={h - pad + 8} stroke="#444" strokeWidth={1} />;
+          })}
+          {xMajor.map((xm, i) => {
+            const xx = xScale(xm);
+            return (
+              <g key={`xM${i}`}>
+                <line x1={xx} x2={xx} y1={h - pad} y2={pad} stroke="#2a2a2a" strokeWidth={1} />
+                <text x={xx - 18} y={h - pad + 18} fontSize={12} fill="#ddd">{formatMMSS(xm - meta.start)}</text>
+              </g>
+            );
+          })}
+        </g>
+
+        {/* axis labels */}
+        <g>
+          <text x={w / 2} y={h - 6} textAnchor="middle" fontSize={13} fill="#ddd">Game Time (MM:SS elapsed)</text>
+          <text transform={`translate(${12}, ${h / 2}) rotate(-90)`} textAnchor="middle" fontSize={13} fill="#ddd">Performance Index</text>
+        </g>
+
+        {/* plotted data */}
+        <g>
+          <path d={primaryPath} stroke="#ffd86b" strokeWidth={2} fill="none" />
+          {points.length > 0 && (
+            <circle cx={xScale(points[points.length - 1].elapsed)} cy={yScale(points[points.length - 1].primary)} r={4} fill="#fff" />
+          )}
+        </g>
+      </svg>
+    </div>
   );
 }
 
@@ -318,5 +505,26 @@ const styles = StyleSheet.create({
   },
   closeText: {
     color: '#fff',
+  },
+  toggleButton: {
+    backgroundColor: '#1c1c1c',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginHorizontal: 6,
+    borderWidth: 1,
+    borderColor: '#3a3a3a',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#4fa3ff',
+    borderColor: '#4fa3ff',
+  },
+  toggleText: {
+    color: '#ddd',
+    fontWeight: '600',
+  },
+  toggleTextActive: {
+    color: '#012',
+    fontWeight: '700',
   },
 });
