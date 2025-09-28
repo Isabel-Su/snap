@@ -118,7 +118,7 @@ def mmss_formatter(x, pos=None):
 
 fig, ax = plt.subplots(figsize=(10, 4.5))
 # Prepare the figure and animated lines
-ax.set_title("Microeconomy Impact Chart")
+ax.set_title("Player Impact Chart")
 ax.set_xlabel("Game Time (MM:SS elapsed)")
 ax.set_ylabel("Performance Index")
 # Apply major/minor locators and formatters to avoid label crowding
