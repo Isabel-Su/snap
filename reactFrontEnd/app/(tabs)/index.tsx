@@ -61,8 +61,11 @@ export default function HomeScreen() {
       )}
 
       <Animated.View style={[styles.sidebar, { width: sidebarWidth, transform: [{ translateX: slide }] }]}>
-        <View style={styles.sidebarHeader}>
+        <View style={[styles.sidebarHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
           <Text style={styles.sidebarTitle}>Saved Captions:</Text>
+          <Pressable onPress={closeSidebar} accessibilityLabel="Close sidebar" style={styles.closeInline}>
+            <Text style={styles.closeInlineText}>✕</Text>
+          </Pressable>
         </View>
         {/* Placeholder list */}
         <View style={styles.sidebarContent}>
@@ -505,6 +508,18 @@ const styles = StyleSheet.create({
   },
   closeText: {
     color: '#fff',
+  },
+  closeInline: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 8,
+    borderRadius: 6,
+    backgroundColor: 'transparent',
+  },
+  closeInlineText: {
+    color: '#fff',
+    fontSize: 18,
+    lineHeight: 18,
   },
   toggleButton: {
     backgroundColor: '#1c1c1c',

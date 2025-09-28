@@ -23,6 +23,38 @@ import time
 import json
 
 plt.style.use("fivethirtyeight")
+# Attempt to register the user's local "Industry" font files so matplotlib
+# text uses the same typography. This is defensive: if the font files are
+# not present the code will quietly fall back to Matplotlib's defaults.
+try:
+    import matplotlib.font_manager as fm
+    _candidate_paths = [
+        '/Users/riasharma/Downloads/Industry Test/IndustryDemi-Regular.otf',
+        '/Users/riasharma/Downloads/Industry Test/IndustryDemi-Bold.otf',
+        '/Users/riasharma/Downloads/Industry Test/Industry-Medi.otf',
+    ]
+    _added = False
+    for _p in _candidate_paths:
+        if os.path.exists(_p):
+            try:
+                fm.fontManager.addfont(_p)
+                _added = True
+            except Exception:
+                # non-fatal if addfont fails for any file
+                pass
+    if _added:
+        # Prefer the Industry family for sans-serif text; include common
+        # fallbacks so labels still render if exact names differ.
+        matplotlib.rcParams['font.family'] = 'sans-serif'
+        matplotlib.rcParams['font.sans-serif'] = [
+            'Industry Medi',
+            'IndustryDemi',
+            'IndustryDemi-Bold',
+            'DejaVu Sans',
+        ]
+except Exception:
+    # Don't let font registration prevent the module from importing.
+    pass
 
 # --- Sample plays data ---
 plays = [
