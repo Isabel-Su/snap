@@ -113,9 +113,9 @@ def get_series(var_name):
 
 # Define three graph presets (initially the same 'tpi vs diff' per your request).
 presets = [
-	{'label': 'Jalen Hurts', 'x': 'elapsed', 'y': 'qb_epa'},
-	{'label': 'Smith', 'x': 'elapsed', 'y': 'qb_epa'},
-	{'label': 'Brown', 'x': 'elapsed', 'y': 'qb_epa'},
+	{'label': 'J. Hurts', 'x': 'elapsed', 'y': 'qb_epa'},
+	{'label': 'D. Smith', 'x': 'elapsed', 'y': 'qb_epa'},
+	{'label': 'A. Brown', 'x': 'elapsed', 'y': 'qb_epa'},
 ]
 
 # Active selection state
@@ -168,7 +168,7 @@ fig, ax = plt.subplots(figsize=(10, 4.5))
 # Prepare the figure and animated lines
 ax.set_title("Player Impact Chart")
 ax.set_xlabel("Game Time (MM:SS elapsed)")
-ax.set_ylabel("Performance Index")
+ax.set_ylabel("Marginal Index")
 # Apply major/minor locators and formatters to avoid label crowding
 ax.xaxis.set_major_locator(MultipleLocator(major_step))
 ax.xaxis.set_major_formatter(FuncFormatter(mmss_formatter))

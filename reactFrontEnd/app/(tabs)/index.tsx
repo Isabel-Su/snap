@@ -97,13 +97,13 @@ export default function HomeScreen() {
             <Text style={[styles.toggleText, chartMode === 'impact' ? styles.toggleTextActive : null]}>Impact</Text>
           </Pressable>
           <Pressable onPress={() => setChartMode('scroller')} style={[styles.toggleButton, chartMode === 'scroller' ? styles.toggleButtonActive : null]}>
-            <Text style={[styles.toggleText, chartMode === 'scroller' ? styles.toggleTextActive : null]}>Scroller</Text>
+            <Text style={[styles.toggleText, chartMode === 'scroller' ? styles.toggleTextActive : null]}>Marginal Analysis</Text>
           </Pressable>
         </View>
 
         <View style={styles.titleWrapper}>
           <View style={styles.titleBackground} />
-          <Text style={styles.title}>To Bet or Not to Bet?</Text>
+          <Text style={styles.title}>GridX</Text>
           {caption && (
             <Text style={{ position: 'absolute', top: 62, alignSelf: 'center', color: '#ccc', fontSize: 12, fontFamily: Fonts.industry as any }}>{captionProb} — {caption}</Text>
           )}
@@ -335,15 +335,11 @@ function WebScroller() {
             ))}
           </select>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: connected ? '#3ee86a' : '#c34f4f' }} />
-          <div style={{ color: '#ddd', fontSize: 13 }}>{connected ? 'Live' : 'Disconnected'}</div>
-        </div>
       </div>
       <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ backgroundColor: '#111', borderRadius: 8 }}>
         <rect x="0" y="0" width={w} height={h} fill="#111" />
         {/* Chart title */}
-        <text x={w / 2} y={20} textAnchor="middle" fontSize={18} fontWeight={700} fill="#fff">Player Impact</text>
+        <text x={w / 2} y={20} textAnchor="middle" fontSize={18} fontWeight={700} fill="#fff">Marginal Analysis (TPI-PPI)</text>
 
         {/* grid lines and y ticks */}
         <g>
