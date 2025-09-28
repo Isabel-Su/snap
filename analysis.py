@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import random
 
 def compute_ppi_tpi_from_plays(plays_json):
     """
@@ -20,17 +21,26 @@ def compute_ppi_tpi_from_plays(plays_json):
     df = df.fillna(0)
     df['passer_player_name'] = df['passer_player_name'].fillna("Unknown")
     df['receiver_player_name'] = df['receiver_player_name'].fillna("Unknown")
-    df = df.drop_duplicates(subset=['game_seconds_remaining'], keep='first').reset_index(drop=True)
 
     # calculate PPI at instant of event based on a position & its formula
-    def calc_ppi(timestamp, position: str):
-        if position == "QB":
-            return 0.5 * df["qb_epa"] + 0.2 * df["air_epa"] + 0.2 * df["wpa"] + 0.1 * (df["yards_gained"] / 10)
-        elif position == "WR":
-            return 0.4 * df["yac_epa"] + 0.3 * df["air_epa"] + 0.2 * df["wpa"] + 0.1 * (df["yards_gained"] / 10)
+    def calc_ppi(position: str, timestamp=None):
+        
+        if timestamp is None:
+            return random.random() * random.randint(-1, 1)
+        
+        # Fetch the row for the given timestamp
+        row = df[df['timestamp'] == timestamp]
+        if row.empty:
+            return None
+        row = row.iloc[0]
+        if position is "QB":
+            return 0.5 * row["qb_epa"] + 0.2 * row["air_epa"] + 0.2 * row["wpa"] + 0.1 * (row["yards_gained"] / 10)
+        elif position is "WR" or position is "TE":
+            return 0.4 * row["yac_epa"] + 0.3 * row["air_epa"] + 0.2 * row["wpa"] + 0.1 * (row["yards_gained"] / 10)
         else:
-            return 0.4 * df["epa"] + 0.3 * df["wpa"] + 0.2 * df["success"]
-        # add more position formulas if time allows
+            # if no formula, that means not enough data for position, so generate a random PPI
+            return random.random() * random.randint(-1, 1)
+        # add more position formulas if time allows / if data exists
 
     # given a player name, compute their PPI time series
     def get_player_ppi_time_series(player_name: str, position: str):
@@ -41,57 +51,21 @@ def compute_ppi_tpi_from_plays(plays_json):
         """
 
         data = []
-        for _, row in events.iterrows():
-            timestamp = row["game_seconds_remaining"]
-            values = [row.get(m, 0.0) for m in metrics]
-            ppi_val = calc_ppi(timestamp, position) # create weighted formula if time allows
-            data.append([timestamp, ppi_val])
+        # Only process rows where the player matches player_name
+        player_rows = df[(df['passer_player_name'] == player_name) | (df['receiver_player_name'] == player_name)]
+        if player_rows.empty:
+            # Create a fake player with a fake timestamp
+            fake_timestamp = -1
+            fake_ppi = calc_ppi(fake_timestamp, position)
+            data.append([fake_timestamp, fake_ppi])
+        else:
+            for _, row in player_rows.iterrows():
+                timestamp = row["game_seconds_remaining"]
+                ppi_val = calc_ppi(position, timestamp=timestamp)
+                data.append([timestamp, ppi_val])
 
+        print({player_name: np.array(data)})
         return {player_name: np.array(data)}
     
 
-    # Step 2: Define PPI scoring
-    def compute_player_ppi(row):
-        w_epa, w_wpa, w_air, w_yac, w_success = 0.4, 0.3, 0.1, 0.1, 0.1
-        x = (row["epa"] * w_epa +
-            row["wpa"] * w_wpa +
-            row["air_epa"] * w_air +
-            row["yac_epa"] * w_yac +
-            row["success"] * w_success)
-        print(x)
-        return (
-            row["epa"] * w_epa +
-            row["wpa"] * w_wpa +
-            row["air_epa"] * w_air +
-            row["yac_epa"] * w_yac +
-            row["success"] * w_success
-        )
-
-    # Step 3: Real-time calculations
-    ppi_over_time, tpi_over_time = [], []
-
-    for ts in sorted(df["timestamp"].unique()):
-        plays_at_ts = df[df["timestamp"] == ts]
-
-        # Player PPI (mean of per-play PPI for each player at this timestamp)
-        ppi_per_player = plays_at_ts.groupby("player_id", group_keys=False).apply(lambda d: d.apply(compute_player_ppi, axis=1), include_groups=False)
-        print(ppi_per_player)
-        avg_ppi = ppi_per_player.mean()
-        # If avg_ppi is a Series, extract scalar
-        if isinstance(avg_ppi, pd.Series):
-            avg_ppi = avg_ppi.item() if avg_ppi.size == 1 else avg_ppi.mean()
-        ppi_over_time.append([ts, float(avg_ppi) if not pd.isnull(avg_ppi) else 0.0])
-
-        # Team TPI (sum of per-play PPI for all players in each team at this timestamp)
-        tpi_per_team = plays_at_ts.groupby("team_id", group_keys=False).apply(
-            lambda d: d.groupby("player_id", group_keys=False).apply(lambda x: x.apply(compute_player_ppi, axis=1), include_groups=False).sum(),
-            include_groups=False
-        )
-
-        avg_tpi = tpi_per_team.mean()
-        if isinstance(avg_tpi, pd.Series):
-            avg_tpi = avg_tpi.item() if avg_tpi.size == 1 else avg_tpi.mean()
-        tpi_over_time.append([ts, float(avg_tpi) if not pd.isnull(avg_tpi) else 0.0])
-
-    # Step 4: Output as numpy arrays
-    return np.array(ppi_over_time), np.array(tpi_over_time)
+    return np.array(all_ppi_over_time), np.array(tpi_over_time)
