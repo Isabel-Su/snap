@@ -344,7 +344,7 @@ class NFLMockClient(MockAPIClient):
         super().__init__(cassette_dir, auto_load_all=auto_load_all)
         self.base_url = "http://localhost:1339"
 
-    def get_jhurts_games(self) -> List[Dict[str, Any]]:
+    def get_game_data(self) -> List[Dict[str, Any]]:
         """
         Load all Jalen Hurts game YAML files from cassettes/jhurts_games, extract play-by-play JSON, and return as list of games.
         Each returned dict has keys: 'game_name', 'plays' (list of dicts)

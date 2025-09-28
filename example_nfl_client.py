@@ -20,11 +20,10 @@ def main():
     # VCR cassettes are automatically loaded behind the scenes
     client = NFLMockClient()
     
-    client.get_jhurts_games()[0]
-    ppi,tpi = analysis.compute_ppi_tpi_from_plays(client.get_jhurts_games()[0]['plays'])
-    print(ppi)
-    print("==============================================")
-    print(tpi)
+    client.get_game_data()[0]
+
+    # demo w/ game 2
+    ppi,tpi = analysis.compute_ppi_tpi_from_plays(client.get_game_data()[2]['plays'])
 
 
     # print("\n1. Getting all leagues...")
