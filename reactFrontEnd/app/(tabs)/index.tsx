@@ -11,29 +11,54 @@ import {
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
-  const slide = React.useRef(new Animated.Value(-width * 0.6)).current; // sidebar hidden to left
+  const sidebarWidth = width * 0.4; // reduced size
+  const slide = React.useRef(new Animated.Value(sidebarWidth)).current;
+  const backdrop = React.useRef(new Animated.Value(0)).current;
+  const [isOpen, setIsOpen] = React.useState(false);
 
   function openSidebar() {
+    setIsOpen(true);
     Animated.timing(slide, {
       toValue: 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(backdrop, {
+      toValue: 0.5,
       duration: 250,
       useNativeDriver: true,
     }).start();
   }
 
   function closeSidebar() {
-    Animated.timing(slide, {
-      toValue: -width * 0.6,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
+    // Keep isOpen true until animations finish so backdrop can fade out
+    Animated.parallel([
+      Animated.timing(slide, {
+        toValue: sidebarWidth,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdrop, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsOpen(false);
+    });
   }
 
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.sidebar, { transform: [{ translateX: slide }] }]}>
+      {isOpen && (
+        <Animated.View style={[styles.backdrop, { opacity: backdrop }]}>
+          <Pressable style={{ flex: 1 }} onPress={closeSidebar} accessibilityLabel="Close Saved captions" />
+        </Animated.View>
+      )}
+
+      <Animated.View style={[styles.sidebar, { width: sidebarWidth, transform: [{ translateX: slide }] }]}>
         <View style={styles.sidebarHeader}>
-          <Text style={styles.sidebarTitle}>Saved captions</Text>
+          <Text style={styles.sidebarTitle}>Saved Captions:</Text>
         </View>
         {/* Placeholder list */}
         <View style={styles.sidebarContent}>
@@ -41,21 +66,19 @@ export default function HomeScreen() {
           <Text style={styles.sidebarItem}>Caption 2</Text>
           <Text style={styles.sidebarItem}>Caption 3</Text>
         </View>
-        <Pressable style={styles.closeButton} onPress={closeSidebar} accessibilityLabel="Close sidebar">
-          <Text style={styles.closeText}>Close</Text>
-        </Pressable>
+
       </Animated.View>
 
       <View style={styles.header}>
-        <Pressable onPress={openSidebar} style={styles.hamburger} accessibilityLabel="Open Saved captions">
-          <View style={styles.line} />
-          <View style={styles.line} />
-          <View style={styles.line} />
-        </Pressable>
         <View style={styles.titleWrapper}>
           <View style={styles.titleBackground} />
           <Text style={styles.title}>to bet or not to bet?</Text>
         </View>
+        <Pressable onPress={() => (isOpen ? closeSidebar() : openSidebar())} style={styles.hamburgerRight} accessibilityLabel="Toggle Saved captions">
+          <View style={styles.line} />
+          <View style={styles.line} />
+          <View style={styles.line} />
+        </Pressable>
       </View>
 
       <View style={styles.centerBox}>
@@ -118,17 +141,28 @@ const styles = StyleSheet.create({
   },
   sidebar: {
     position: 'absolute',
-    left: 0,
+    right: 0,
     top: 0,
     bottom: 0,
-    width: width * 0.6,
-    backgroundColor: '#111',
+    backgroundColor: '#333',
     shadowColor: '#000',
     shadowOpacity: 0.7,
     shadowRadius: 8,
     elevation: 10,
     paddingTop: 40,
     zIndex: 100,
+  },
+  backdrop: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: '#000',
+    zIndex: 90,
+  },
+  hamburgerRight: {
+    padding: 8,
   },
   sidebarHeader: {
     paddingHorizontal: 16,
