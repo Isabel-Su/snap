@@ -8,9 +8,9 @@ import random
 
 app = Flask(__name__)
 
-df = pd.read_csv("play_by_play_2025.csv", low_memory=False)
-hurts_df = df[df["passer"] == "J.Hurts"].copy()
-hurts_df = hurts_df.dropna(subset=["qb_epa", "yards_gained", "game_seconds_remaining", "down", "ydstogo"])
+df = pd.read_csv("pulse_mock/cassettes/play_by_play_2025_jhurts.csv", low_memory=False)
+#hurts_df = df[df["passer"] == "J.Hurts"].copy()
+hurts_df = df.dropna(subset=["qb_epa", "yards_gained", "game_seconds_remaining"])
 
 hurts_df["impact_spike"] = (
     (hurts_df["qb_epa"] > 1.0) |
@@ -19,7 +19,7 @@ hurts_df["impact_spike"] = (
     (hurts_df.get("field_goal_result", "") == "made")
 ).astype(int)
 
-features = ["down", "ydstogo", "yards_gained", "qb_epa", "quarter_seconds_remaining", "game_seconds_remaining"]
+features = ["yards_gained", "qb_epa", "game_seconds_remaining"]
 hurts_df = hurts_df.dropna(subset=features)
 
 X = hurts_df[features]
@@ -77,6 +77,6 @@ def regenerate():
     return jsonify({"caption": caption, "prob": f"{prob:.2f}"})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=8001, debug=True)
 
  
