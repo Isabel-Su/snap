@@ -1,30 +1,6 @@
 import os
 import math
 import matplotlib
-# Select a backend dynamically:
-# - prefer an interactive backend when available (so plt.show() works)
-# - if none available (headless/CI), fall back to 'Agg' which is non-interactive but can save files
-interactive_backends = matplotlib.rcsetup.interactive_bk
-backend = matplotlib.get_backend()
-is_interactive = backend in interactive_backends
-
-if not is_interactive:
-	# try common interactive backends
-	for candidate in ('MacOSX', 'Qt5Agg', 'TkAgg', 'QtAgg', 'GTK3Agg'):
-		try:
-			matplotlib.use(candidate, force=True)
-			backend = matplotlib.get_backend()
-			is_interactive = backend in interactive_backends
-			if is_interactive:
-				break
-		except Exception:
-			# backend not available, try next
-			continue
-
-if not is_interactive:
-	# final fallback to Agg for headless environments
-	matplotlib.use('Agg', force=True)
-
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FuncFormatter, NullFormatter
 import matplotlib.animation as animation
@@ -239,109 +215,94 @@ def update(i):
 frame_interval_ms = 2000  # milliseconds between frames (0.5s)
 
 # --- UI: RadioButtons to pick preset and TextBoxes to edit x/y variables ---
-if is_interactive:
 	# create small axes for controls on the right
-	axcolor = 'lightgoldenrodyellow'
-	rax = plt.axes([0.87, 0.5, 0.11, 0.05], facecolor=axcolor)
-	# Dropdown: choose which preset/graph to display
-	dropdown = Dropdown(rax, [p['label'] for p in presets], active=active_idx)
+axcolor = 'lightgoldenrodyellow'
+rax = plt.axes([0.87, 0.5, 0.11, 0.05], facecolor=axcolor)
+# Dropdown: choose which preset/graph to display
+dropdown = Dropdown(rax, [p['label'] for p in presets], active=active_idx)
 
-	tbx_x = plt.axes([0.87, 0.35, 0.11, 0.04], facecolor=axcolor)
-	text_x = TextBox(tbx_x, 'x var', initial=presets[active_idx]['x'])
-	tbx_y = plt.axes([0.87, 0.27, 0.11, 0.04], facecolor=axcolor)
-	text_y = TextBox(tbx_y, 'y var', initial=presets[active_idx]['y'])
-	bax = plt.axes([0.87, 0.2, 0.11, 0.04])
-	apply_btn = Button(bax, 'Apply')
+tbx_x = plt.axes([0.87, 0.35, 0.11, 0.04], facecolor=axcolor)
+text_x = TextBox(tbx_x, 'x var', initial=presets[active_idx]['x'])
+tbx_y = plt.axes([0.87, 0.27, 0.11, 0.04], facecolor=axcolor)
+text_y = TextBox(tbx_y, 'y var', initial=presets[active_idx]['y'])
+bax = plt.axes([0.87, 0.2, 0.11, 0.04])
+apply_btn = Button(bax, 'Apply')
 
-	def apply_preset(event=None):
-		global xs, ys, xlim, ylim, ani, active_idx, diff_series
-		# update current preset from text boxes
-		presets[active_idx]['x'] = text_x.text.strip()
-		presets[active_idx]['y'] = text_y.text.strip()
-		# recompute series
-		xs = get_series(presets[active_idx]['x'])
-		ys = get_series(presets[active_idx]['y'])
-		# recompute diff series (wpa - qb_epa) relative to idx_order
-		diff_series = [float(plays[i].get('wpa') or 0.0) - float(plays[i].get('qb_epa') or 0.0) for i in idx_order]
-		(xlim, ylim) = compute_limits(xs, ys)
-		ax.set_xlim(xlim[0], xlim[1])
-		ax.set_ylim(ylim[0], ylim[1])
-		# if x is elapsed, reapply time formatter/ticks
-		if presets[active_idx]['x'] == 'elapsed':
-			ax.xaxis.set_major_locator(MultipleLocator(major_step))
-			ax.xaxis.set_major_formatter(FuncFormatter(mmss_formatter))
-			ax.xaxis.set_minor_locator(MultipleLocator(minor_step))
-			ax.xaxis.set_minor_formatter(NullFormatter())
-			ax.set_xticks(range(start, end + 1, minor_step), minor=True)
-		# restart animation with new length
-		try:
-			ani.event_source.stop()
-		except Exception:
-			pass
-		ani = animation.FuncAnimation(fig, update, frames=len(xs), init_func=init, interval=frame_interval_ms, blit=False, repeat=False)
-		plt.draw()
+def apply_preset(event=None):
+	global xs, ys, xlim, ylim, ani, active_idx, diff_series
+	# update current preset from text boxes
+	presets[active_idx]['x'] = text_x.text.strip()
+	presets[active_idx]['y'] = text_y.text.strip()
+	# recompute series
+	xs = get_series(presets[active_idx]['x'])
+	ys = get_series(presets[active_idx]['y'])
+	# recompute diff series (wpa - qb_epa) relative to idx_order
+	diff_series = [float(plays[i].get('wpa') or 0.0) - float(plays[i].get('qb_epa') or 0.0) for i in idx_order]
+	(xlim, ylim) = compute_limits(xs, ys)
+	ax.set_xlim(xlim[0], xlim[1])
+	ax.set_ylim(ylim[0], ylim[1])
+	# if x is elapsed, reapply time formatter/ticks
+	if presets[active_idx]['x'] == 'elapsed':
+		ax.xaxis.set_major_locator(MultipleLocator(major_step))
+		ax.xaxis.set_major_formatter(FuncFormatter(mmss_formatter))
+		ax.xaxis.set_minor_locator(MultipleLocator(minor_step))
+		ax.xaxis.set_minor_formatter(NullFormatter())
+		ax.set_xticks(range(start, end + 1, minor_step), minor=True)
+	# restart animation with new length
+	try:
+		ani.event_source.stop()
+	except Exception:
+		pass
+	ani = animation.FuncAnimation(fig, update, frames=len(xs), init_func=init, interval=frame_interval_ms, blit=False, repeat=False)
+	plt.draw()
 
-	def on_radio(label):
-		global active_idx, xs, ys, diff_series, xlim, ylim, ani
-		active_idx = next(i for i, p in enumerate(presets) if p['label'] == label)
-		# update series to the selected preset
-		xs = get_series(presets[active_idx]['x'])
-		ys = get_series(presets[active_idx]['y'])
-		diff_series = [float(plays[i].get('wpa') or 0.0) - float(plays[i].get('qb_epa') or 0.0) for i in idx_order]
-		(xlim, ylim) = compute_limits(xs, ys)
-		ax.set_xlim(xlim[0], xlim[1])
-		ax.set_ylim(ylim[0], ylim[1])
-		# update text boxes to show the selected preset
-		text_x.set_val(presets[active_idx]['x'])
-		text_y.set_val(presets[active_idx]['y'])
-		try:
-			ani.event_source.stop()
-		except Exception:
-			pass
-		ani = animation.FuncAnimation(fig, update, frames=len(xs), init_func=init, interval=frame_interval_ms, blit=False, repeat=False)
+def on_radio(label):
+	global active_idx, xs, ys, diff_series, xlim, ylim, ani
+	active_idx = next(i for i, p in enumerate(presets) if p['label'] == label)
+	# update series to the selected preset
+	xs = get_series(presets[active_idx]['x'])
+	ys = get_series(presets[active_idx]['y'])
+	diff_series = [float(plays[i].get('wpa') or 0.0) - float(plays[i].get('qb_epa') or 0.0) for i in idx_order]
+	(xlim, ylim) = compute_limits(xs, ys)
+	ax.set_xlim(xlim[0], xlim[1])
+	ax.set_ylim(ylim[0], ylim[1])
+	# update text boxes to show the selected preset
+	text_x.set_val(presets[active_idx]['x'])
+	text_y.set_val(presets[active_idx]['y'])
+	try:
+		ani.event_source.stop()
+	except Exception:
+		pass
+	ani = animation.FuncAnimation(fig, update, frames=len(xs), init_func=init, interval=frame_interval_ms, blit=False, repeat=False)
 
 	# wire dropdown selection to the same handler used for radio buttons
-	dropdown.on_select(on_radio)
-	apply_btn.on_clicked(apply_preset)
+dropdown.on_select(on_radio)
+apply_btn.on_clicked(apply_preset)
 
-# Animation: prefer interactive display; if headless, render updates and save final image
+# Animation: prefer 	interactive display; if headless, render updates and save final image
 current_backend = matplotlib.get_backend()
-is_interactive = current_backend in matplotlib.rcsetup.interactive_bk
+current_backend in matplotlib.rcsetup.interactive_bk
 
 frame_interval_ms = 2000  # milliseconds between frames (0.5s)
 
-if is_interactive:
 	# Turn on interactive mode so the GUI event loop processes between frames.
-	plt.ion()
-	ani = animation.FuncAnimation(
-		fig,
-		update,
-		frames=len(xs),
-		init_func=init,
-		interval=frame_interval_ms,
-		blit=False,
-		repeat=False,
-	)
-	try:
-		# Show window without blocking — we'll drive the event loop with plt.pause
-		plt.show(block=False)
-		# Let the animation run by yielding to the GUI event loop at the frame interval
-		for _ in range(len(elapsed)):
-			plt.pause(frame_interval_ms / 1000.0)
-		# Keep the window open briefly after finishing
-		plt.pause(5)
-	except Exception as e:
-		print(f"Interactive display failed with backend {current_backend}: {e}")
-else:
-	# Headless: step through frames to simulate live updates, then save final image
-	for i in range(len(xs)):
-		update(i)
-		# draw on the Agg canvas
-		fig.canvas.draw()
-		# sleep to simulate live arrival (use same interval as interactive)
-		time.sleep(frame_interval_ms / 1000.0)
-	plt.tight_layout()
-	plt.savefig(output_path, dpi=150)
-	print(f"Saved impact chart to {output_path}")
-	print('Tick range (s elapsed):', start, 'to', end)
-	print('Major tick step (s):', major_step, 'Minor tick step (s):', minor_step)
+plt.ion()
+ani = animation.FuncAnimation(
+	fig,
+	update,
+	frames=len(xs),
+	init_func=init,
+	interval=frame_interval_ms,
+	blit=False,
+	repeat=False,
+)
+try:
+	# Show window without blocking — we'll drive the event loop with plt.pause
+	plt.show(block=False)
+	# Let the animation run by yielding to the GUI event loop at the frame interval
+	for _ in range(len(elapsed)):
+		plt.pause(frame_interval_ms / 1000.0)
+	# Keep the window open briefly after finishing
+	plt.pause(5)
+except Exception as e:
+	print(f"Interactive display failed with backend {current_backend}: {e}")
