@@ -105,7 +105,7 @@ export default function HomeScreen() {
           <View style={styles.titleBackground} />
           <Text style={styles.title}>To Bet or Not to Bet?</Text>
           {caption && (
-            <Text style={{ color: '#ccc', fontSize: 12, marginTop: 4 }}>{captionProb} — {caption}</Text>
+            <Text style={{ position: 'absolute', top: 62, alignSelf: 'center', color: '#ccc', fontSize: 12, fontFamily: Fonts.industry as any }}>{captionProb} — {caption}</Text>
           )}
         </View>
 
@@ -114,7 +114,7 @@ export default function HomeScreen() {
           <View style={styles.line} />
           <View style={styles.line} />
         </Pressable>
-        <Pressable onPress={async () => {
+  <Pressable onPress={async () => {
           // Try proxied path first, then fall back to absolute backend URL.
           const endpoints = ['/api/regenerate', 'http://127.0.0.1:8001/regenerate', 'http://127.0.0.1:8002/regenerate'];
           let ok = false;
@@ -146,7 +146,7 @@ export default function HomeScreen() {
             setCaptionProb(null);
           }
         }} style={{ marginLeft: 12 }} accessibilityLabel="Regenerate caption">
-          <Text style={{ color: '#4fa3ff' }}>Regenerate</Text>
+          <Text style={{ color: '#883bd6ff', fontFamily: Fonts.industryBold as any }}>REGENERATE</Text>
         </Pressable>
       </View>
 
@@ -539,17 +539,18 @@ const styles = StyleSheet.create({
   titleBackground: {
     position: 'absolute',
     backgroundColor: '#2f2f2f',
-    height: 40,
-    width: '100%',
-    borderRadius: 6,
+    height: 56,
+    width: '50%',
+    borderRadius: 8,
     opacity: 0.95,
   },
   title: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 27,
     fontWeight: '700',
     fontFamily: Fonts.industryBold as any,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    lineHeight: 56,
   },
   centerBox: {
     flex: 1,
@@ -639,8 +640,8 @@ const styles = StyleSheet.create({
     borderColor: '#3a3a3a',
   },
   toggleButtonActive: {
-    backgroundColor: '#4fa3ff',
-    borderColor: '#4fa3ff',
+    backgroundColor: '#7E00FF',
+    borderColor: '#7E00FF',
   },
   toggleText: {
     color: '#ddd',
@@ -648,7 +649,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.industry as any,
   },
   toggleTextActive: {
-    color: '#012',
+    color: '#fff',
     fontWeight: '700',
     fontFamily: Fonts.industryBold as any,
   },
