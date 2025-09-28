@@ -74,9 +74,12 @@ def index():
 @app.route("/regenerate")
 def regenerate():
     caption, prob = generate_caption()
-    return jsonify({"caption": caption, "prob": f"{prob:.2f}"})
+    resp = jsonify({"caption": caption, "prob": f"{prob:.2f}"})
+    # permissive CORS for local development
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8001, debug=True)
+    app.run(host="0.0.0.0", port=8002, debug=True)
 
  

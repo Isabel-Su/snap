@@ -19,6 +19,8 @@ export default function HomeScreen() {
   const backdrop = React.useRef(new Animated.Value(0)).current;
   const [isOpen, setIsOpen] = React.useState(false);
   const [chartMode, setChartMode] = React.useState<'impact' | 'scroller'>('impact');
+  const [caption, setCaption] = React.useState<string | null>(null);
+  const [captionProb, setCaptionProb] = React.useState<string | null>(null);
 
   function openSidebar() {
     setIsOpen(true);
@@ -89,12 +91,39 @@ export default function HomeScreen() {
         <View style={styles.titleWrapper}>
           <View style={styles.titleBackground} />
           <Text style={styles.title}>To Bet or Not to Bet?</Text>
+          {caption && (
+            <Text style={{ color: '#ccc', fontSize: 12, marginTop: 4 }}>{captionProb} — {caption}</Text>
+          )}
         </View>
 
         <Pressable onPress={() => (isOpen ? closeSidebar() : openSidebar())} style={[styles.hamburgerRight, { marginLeft: 12 }]} accessibilityLabel="Toggle Saved captions">
           <View style={styles.line} />
           <View style={styles.line} />
           <View style={styles.line} />
+        </Pressable>
+        <Pressable onPress={async () => {
+          // Try proxied path first, then fall back to absolute backend URL.
+          const endpoints = ['/api/regenerate', 'http://127.0.0.1:8001/regenerate', 'http://127.0.0.1:8002/regenerate'];
+          let ok = false;
+          for (const url of endpoints) {
+            try {
+              const res = await fetch(url);
+              if (!res.ok) continue;
+              const d = await res.json();
+              setCaption(d.caption);
+              setCaptionProb(d.prob);
+              ok = true;
+              break;
+            } catch (err) {
+              // try next endpoint
+            }
+          }
+          if (!ok) {
+            setCaption('Error connecting');
+            setCaptionProb(null);
+          }
+        }} style={{ marginLeft: 12 }} accessibilityLabel="Regenerate caption">
+          <Text style={{ color: '#4fa3ff' }}>Regenerate</Text>
         </Pressable>
       </View>
 

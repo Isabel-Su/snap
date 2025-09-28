@@ -34,6 +34,7 @@ setup(
     python_requires=">=3.7",
     install_requires=[
         "PyYAML>=5.1.0",
+        "scikit-learn>=1.3.2",
     ],
     extras_require={
         "dev": [
