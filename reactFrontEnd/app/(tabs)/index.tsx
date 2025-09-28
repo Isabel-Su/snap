@@ -11,6 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useEffect, useState } from 'react';
+import { Fonts } from '../../constants/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -547,6 +548,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: Fonts.industryBold as any,
     paddingHorizontal: 12,
   },
   centerBox: {
@@ -593,6 +595,7 @@ const styles = StyleSheet.create({
     color: '#ddd',
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: Fonts.industryBold as any,
   },
   sidebarContent: {
     paddingHorizontal: 16,
@@ -603,6 +606,7 @@ const styles = StyleSheet.create({
   sidebarItem: {
     color: '#bbb',
     paddingVertical: 8,
+    fontFamily: Fonts.industry as any,
   },
   closeButton: {
     marginTop: 24,
@@ -623,6 +627,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     lineHeight: 18,
+    fontFamily: Fonts.industryBold as any,
   },
   toggleButton: {
     backgroundColor: '#1c1c1c',
@@ -640,9 +645,11 @@ const styles = StyleSheet.create({
   toggleText: {
     color: '#ddd',
     fontWeight: '600',
+    fontFamily: Fonts.industry as any,
   },
   toggleTextActive: {
     color: '#012',
     fontWeight: '700',
+    fontFamily: Fonts.industryBold as any,
   },
 });
