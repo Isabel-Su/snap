@@ -9,6 +9,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
+import { useEffect, useState } from 'react';
 
 const { width } = Dimensions.get('window');
 
@@ -74,7 +75,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.titleWrapper}>
           <View style={styles.titleBackground} />
-          <Text style={styles.title}>to bet or not to bet?</Text>
+          <Text style={styles.title}>To Bet or Not to Bet?</Text>
         </View>
         <Pressable onPress={() => (isOpen ? closeSidebar() : openSidebar())} style={styles.hamburgerRight} accessibilityLabel="Toggle Saved captions">
           <View style={styles.line} />
@@ -84,16 +85,78 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.centerBox}>
+        {Platform.OS === 'web' ? (
+          <WebChart />
+        ) : (
           <Image
             source={{
-              uri:
-                'http://128.61.124.100:8000/impact_chart.gif'
+              uri: 'http://128.61.124.100:8000/impact_chart.gif'
             }}
             style={styles.chartImage}
             resizeMode="contain"
           />
+        )}
       </View>
     </View>
+  );
+}
+
+function WebChart() {
+  const [points, setPoints] = useState<Array<any>>([]);
+  const [meta, setMeta] = useState<any | null>(null);
+
+  useEffect(() => {
+    // Start by fetching meta (start/end/ymin/ymax)
+    fetch('http://localhost:8000/impact_chart.json')
+      .then((r) => r.json())
+      .then(setMeta)
+      .catch(() => setMeta(null));
+
+    const evt = new EventSource('http://localhost:8000/impact_chart/stream?interval_ms=600');
+    evt.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        setPoints((p) => [...p, d]);
+      } catch (err) {
+        // ignore
+      }
+    };
+    evt.addEventListener('done', () => {
+      evt.close();
+    });
+    evt.onerror = () => {
+      evt.close();
+    };
+    return () => evt.close();
+  }, []);
+
+  if (!meta) {
+    return <View style={[styles.chartImage, { alignItems: 'center', justifyContent: 'center' }]}><Text style={{ color: '#ddd' }}>Connecting…</Text></View>;
+  }
+
+  const w = 800;
+  const h = 300;
+  const pad = 40;
+  const xScale = (v: number) => pad + ((v - meta.start) / (meta.end - meta.start)) * (w - pad * 2);
+  const yScale = (v: number) => h - pad - ((v - meta.ymin) / (meta.ymax - meta.ymin)) * (h - pad * 2);
+
+  const tpiPath = points.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${xScale(pt.elapsed)} ${yScale(pt.tpi)}`).join(' ');
+  const ppiPath = points.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${xScale(pt.elapsed)} ${yScale(pt.ppi)}`).join(' ');
+
+  return (
+    <div style={{ width: '80%', maxWidth: 900 }}>
+      <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ backgroundColor: '#111', borderRadius: 8 }}>
+        <rect x="0" y="0" width={w} height={h} fill="#111" />
+        <g>
+          <path d={tpiPath} stroke="#4fa3ff" strokeWidth={2} fill="none" />
+          <path d={ppiPath} stroke="#ff6b6b" strokeWidth={2} strokeDasharray="6 4" fill="none" />
+          {/* current marker */}
+          {points.length > 0 && (
+            <circle cx={xScale(points[points.length - 1].elapsed)} cy={yScale(points[points.length - 1].tpi)} r={4} fill="#fff" />
+          )}
+        </g>
+      </svg>
+    </div>
   );
 }
 

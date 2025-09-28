@@ -17,7 +17,10 @@ from io import BytesIO
 from flask import Flask, send_file
 import os
 import tempfile
+from flask import jsonify, make_response, Response, request
 import threading
+import time
+import json
 
 plt.style.use("fivethirtyeight")
 
@@ -204,5 +207,53 @@ def impact_chart_gif():
             raise
 
 
+@app.route('/impact_chart.json')
+def impact_chart_json():
+    """Return the chart data as JSON so frontends (web) can render natively.
+
+    Adds a permissive CORS header for convenience during development.
+    """
+    payload = {
+        'elapsed': elapsed,
+        'tpi': tpi,
+        'ppi': ppi,
+        'start': start,
+        'end': end,
+        'ymin': ymin - pad,
+        'ymax': ymax + pad,
+    }
+    resp = make_response(jsonify(payload))
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
+
+
+@app.route('/impact_chart/stream')
+def impact_chart_stream():
+    """Server-Sent Events endpoint that streams chart points one at a time.
+
+    Query params:
+      interval_ms=<int>  -> how many milliseconds to wait between points (default 500)
+    """
+    interval_raw = request.args.get('interval_ms', '500')
+    try:
+        interval_ms = int(interval_raw)
+    except Exception:
+        interval_ms = 500
+    interval_ms = max(50, min(20000, interval_ms))
+
+    def generate():
+        for i in range(len(elapsed)):
+            payload = {'i': i, 'elapsed': elapsed[i], 'tpi': tpi[i], 'ppi': ppi[i]}
+            yield f"data: {json.dumps(payload)}\n\n"
+            time.sleep(interval_ms / 1000.0)
+        # final event to indicate completion
+        yield "event: done\ndata: {}\n\n"
+
+    headers = {
+        'Cache-Control': 'no-cache',
+        'Content-Type': 'text/event-stream',
+        'Access-Control-Allow-Origin': '*',
+    }
+    return Response(generate(), headers=headers)
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)
