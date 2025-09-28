@@ -8,6 +8,7 @@ import {
   Dimensions,
   Platform,
   Image,
+  ScrollView,
 } from 'react-native';
 import { useEffect, useState } from 'react';
 
@@ -21,6 +22,8 @@ export default function HomeScreen() {
   const [chartMode, setChartMode] = React.useState<'impact' | 'scroller'>('impact');
   const [caption, setCaption] = React.useState<string | null>(null);
   const [captionProb, setCaptionProb] = React.useState<string | null>(null);
+  const [savedCaptions, setSavedCaptions] = React.useState<Array<{caption:string; prob:string; ts:number}>>([]);
+  const sidebarScrollRef = React.useRef<ScrollView | null>(null);
 
   function openSidebar() {
     setIsOpen(true);
@@ -64,16 +67,25 @@ export default function HomeScreen() {
 
       <Animated.View style={[styles.sidebar, { width: sidebarWidth, transform: [{ translateX: slide }] }]}>
         <View style={[styles.sidebarHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-          <Text style={styles.sidebarTitle}>Saved Captions:</Text>
+          <Text style={styles.sidebarTitle}>Saved Captions</Text>
           <Pressable onPress={closeSidebar} accessibilityLabel="Close sidebar" style={styles.closeInline}>
             <Text style={styles.closeInlineText}>✕</Text>
           </Pressable>
         </View>
         {/* Placeholder list */}
-        <View style={styles.sidebarContent}>
-          <Text style={styles.sidebarItem}>Caption 1</Text>
-          <Text style={styles.sidebarItem}>Caption 2</Text>
-          <Text style={styles.sidebarItem}>Caption 3</Text>
+        <View style={[styles.sidebarContent, { flex: 1 }]}>
+          <ScrollView ref={sidebarScrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
+            {savedCaptions.length === 0 ? (
+              <Text style={styles.sidebarItem}>No saved captions yet. Click "Regenerate" to add one.</Text>
+            ) : (
+              savedCaptions.map((c, i) => (
+                <View key={`${c.ts}-${i}`} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#2a2a2a' }}>
+                  <Text style={styles.sidebarItem}>{c.caption}</Text>
+                  <Text style={{ color: '#888', fontSize: 12 }}>{c.prob}</Text>
+                </View>
+              ))
+            )}
+          </ScrollView>
         </View>
 
       </Animated.View>
@@ -112,6 +124,16 @@ export default function HomeScreen() {
               const d = await res.json();
               setCaption(d.caption);
               setCaptionProb(d.prob);
+              // prepend to saved captions
+              setSavedCaptions((prev) => [{ caption: d.caption, prob: d.prob, ts: Date.now() }, ...prev]);
+              // scroll the sidebar to top so newest is visible (web & native)
+              try {
+                if (sidebarScrollRef.current && (sidebarScrollRef.current as any).scrollTo) {
+                  (sidebarScrollRef.current as any).scrollTo({ y: 0, animated: true });
+                }
+              } catch (e) {
+                // ignore
+              }
               ok = true;
               break;
             } catch (err) {
@@ -160,17 +182,31 @@ function WebScroller() {
 
   // fetch meta + presets, then open SSE stream for selected preset
   useEffect(() => {
-    fetch('http://localhost:8001/scroller.json')
-      .then((r) => r.json())
-      .then((data) => {
-        setMeta(data);
-        if (Array.isArray(data.presets)) {
-          setPresets(data.presets);
-          const initial = data.presets[data.active] || data.presets[0];
-          setSelectedPreset(initial || null);
+    const endpoints = ['/api/scroller.json', 'http://127.0.0.1:8001/scroller.json', 'http://127.0.0.1:8002/scroller.json'];
+    let found = false;
+    (async () => {
+      for (const url of endpoints) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const data = await res.json();
+          // remember which base URL worked so we can open SSE at same origin
+          const base = (res.url || url).replace(/\/scroller.json.*$/, '');
+          // save meta and presets
+          setMeta({ ...data, _baseUrl: base });
+          if (Array.isArray(data.presets)) {
+            setPresets(data.presets);
+            const initial = data.presets[data.active] || data.presets[0];
+            setSelectedPreset(initial || null);
+          }
+          found = true;
+          break;
+        } catch (err) {
+          // try next endpoint
         }
-      })
-      .catch(() => setMeta(null));
+      }
+      if (!found) setMeta(null);
+    })();
     return () => {
       // noop
     };
@@ -188,11 +224,42 @@ function WebScroller() {
       }
     } catch (e) {}
 
-    const url = `http://localhost:8001/scroller/stream?interval_ms=400&preset=${encodeURIComponent(selectedPreset)}`;
-    const evt = new EventSource(url);
+    // derive stream URL from the meta fetch's base if available, otherwise try common hosts
+    const base = (meta && (meta as any)._baseUrl) ? (meta as any)._baseUrl : 'http://127.0.0.1:8001';
+    const streamCandidates = [
+      `${base}/scroller/stream?interval_ms=400&preset=${encodeURIComponent(selectedPreset)}`,
+      `/api/scroller/stream?interval_ms=400&preset=${encodeURIComponent(selectedPreset)}`,
+      `http://127.0.0.1:8001/scroller/stream?interval_ms=400&preset=${encodeURIComponent(selectedPreset)}`,
+      `http://127.0.0.1:8002/scroller/stream?interval_ms=400&preset=${encodeURIComponent(selectedPreset)}`,
+    ];
+
+    // Try to open an EventSource to the first working candidate. EventSource errors are handled by onerror.
+    let evt: EventSource | null = null;
+    const tryOpen = (candidates: string[]) => {
+      if (!candidates || candidates.length === 0) return null;
+      const u = candidates[0];
+      try {
+        const e = new EventSource(u);
+        // attach temporary handlers to detect failure and fall back
+        const onError = () => {
+          try {
+            e.close();
+          } catch (err) {}
+          // try next
+          tryOpen(candidates.slice(1));
+        };
+        e.onerror = onError;
+        return e;
+      } catch (err) {
+        return tryOpen(candidates.slice(1));
+      }
+    };
+
+    evt = tryOpen(streamCandidates);
     evtRef.current = evt;
-    evt.onopen = () => setConnected(true);
-    evt.onmessage = (e) => {
+    if (evt) {
+      evt.onopen = () => setConnected(true);
+      evt.onmessage = (e) => {
       try {
         const d = JSON.parse(e.data);
         setPoints((p) => [...p, d]);
@@ -200,24 +267,29 @@ function WebScroller() {
         // ignore
       }
     };
-    evt.addEventListener('done', () => {
+      evt.addEventListener('done', () => {
       try {
         evt.close();
       } catch (e) {}
       setConnected(false);
     });
-    evt.onerror = () => {
+      evt.onerror = () => {
+        setConnected(false);
+        try {
+          evt.close();
+        } catch (e) {}
+      };
+      return () => {
+        try {
+          evt.close();
+        } catch (e) {}
+        setConnected(false);
+      };
+    } else {
+      // no event source opened
       setConnected(false);
-      try {
-        evt.close();
-      } catch (e) {}
-    };
-    return () => {
-      try {
-        evt.close();
-      } catch (e) {}
-      setConnected(false);
-    };
+      return () => {};
+    }
   }, [selectedPreset]);
 
   if (!meta) {
@@ -525,6 +597,8 @@ const styles = StyleSheet.create({
   sidebarContent: {
     paddingHorizontal: 16,
     paddingTop: 8,
+    // allow the content area to grow and be scrollable when necessary
+    overflow: 'hidden',
   },
   sidebarItem: {
     color: '#bbb',
