@@ -81,6 +81,8 @@ app = Flask(__name__)
 
 def render_impact_chart_bytes() -> BytesIO:
     fig, ax = plt.subplots(figsize=(10, 4.5))
+    # leave extra space at the bottom so x-axis labels don't get cropped
+    fig.subplots_adjust(bottom=0.22)
     ax.set_title("Microeconomy Impact Chart")
     ax.set_xlabel("Game Time (MM:SS elapsed)")
     ax.set_ylabel("Performance Index")
@@ -103,7 +105,8 @@ def render_impact_chart_bytes() -> BytesIO:
     ax.legend()
 
     buf = BytesIO()
-    fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+    # save without tight bbox; we've already made room via subplots_adjust
+    fig.savefig(buf, format='png', dpi=150)
     plt.close(fig)
     buf.seek(0)
     return buf
@@ -122,6 +125,8 @@ _gif_cache_path = os.path.join(os.path.dirname(__file__), 'impact_chart.gif')
 def generate_impact_gif(path: str, interval_ms: int = 300):
     """Generate an animated GIF at `path`. Overwrites existing file."""
     fig, ax = plt.subplots(figsize=(10, 4.5))
+    # ensure bottom margin so x-axis labels are visible in GIF frames
+    fig.subplots_adjust(bottom=0.22)
     ax.set_title("Microeconomy Impact Chart")
     ax.set_xlabel("Game Time (MM:SS elapsed)")
     ax.set_ylabel("Performance Index")
