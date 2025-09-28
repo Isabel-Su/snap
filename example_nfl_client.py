@@ -8,7 +8,7 @@ providing convenient methods for accessing leagues, teams, players, and games da
 """
 
 from pulse_mock import NFLMockClient
-import analysis
+from pulse_mock import analysis
 
 def main():
     """Main example function demonstrating NFLMockClient usage."""
