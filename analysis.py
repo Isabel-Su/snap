@@ -23,18 +23,18 @@ def compute_ppi_tpi_from_plays(plays_json):
     df['receiver_player_name'] = df['receiver_player_name'].fillna("Unknown")
 
     # calculate PPI at instant of event based on a position & its formula
-    def calc_ppi(position: str, timestamp=None):
-        
-        if timestamp is None:
-            return random.random() * random.randint(-1, 1)
+    def calc_ppi(position: str, timestamp):
         
         # Fetch the row for the given timestamp
         row = df[df['timestamp'] == timestamp]
         if row.empty:
             return None
         row = row.iloc[0]
+
+        # player is a passer
         if position is "QB":
             return 0.5 * row["qb_epa"] + 0.2 * row["air_epa"] + 0.2 * row["wpa"] + 0.1 * (row["yards_gained"] / 10)
+        # player is a receiver
         elif position is "WR" or position is "TE":
             return 0.4 * row["yac_epa"] + 0.3 * row["air_epa"] + 0.2 * row["wpa"] + 0.1 * (row["yards_gained"] / 10)
         else:
@@ -53,19 +53,97 @@ def compute_ppi_tpi_from_plays(plays_json):
         data = []
         # Only process rows where the player matches player_name
         player_rows = df[(df['passer_player_name'] == player_name) | (df['receiver_player_name'] == player_name)]
+        
+        # if player is fake due to lack of data
         if player_rows.empty:
             # Create a fake player with a fake timestamp
-            fake_timestamp = -1
-            fake_ppi = calc_ppi(fake_timestamp, position)
-            data.append([fake_timestamp, fake_ppi])
+            for i in random.randrange(20, 50):
+                # generate fake timestamps at random intervals, with each interval between 60 and 500 seconds
+                fake_timestamp = i * random.random() * 440 + 60
+                fake_ppi = calc_ppi(position, -1)
+                data.append([fake_ppi, fake_timestamp])
+
+        # player is real
         else:
             for _, row in player_rows.iterrows():
                 timestamp = row["game_seconds_remaining"]
                 ppi_val = calc_ppi(position, timestamp=timestamp)
-                data.append([timestamp, ppi_val])
+                data.append([ppi_val, timestamp])
 
         print({player_name: np.array(data)})
         return {player_name: np.array(data)}
     
+    # create fake players with fake PPI time series, default values based on typical NFL roster sizes
+    # returns a dict of fake players with fake PPI time series
+    def create_fake_players_ppi_time_series(num_qb=3, num_rb=4, num_wr=5, num_te=4, num_c=2, num_g=2, num_ot=5, num_de=2, num_dt=5, num_lb=8, num_cb=6, num_s=4, num_pk=1, num_p=1, num_ls=1):
+        """
+        Creates all necessary fake players with fake PPI time series.
+        Returns: list of {player_name: np.array([[timestamp, ppi], ...])}
+        """
+        players_ppi = []
+        position_counts = {
+            "QB": num_qb,
+            "RB": num_rb,
+            "WR": num_wr,
+            "TE": num_te,
+            "C": num_c,
+            "G": num_g,
+            "OT": num_ot,
+            "DE": num_de,
+            "DT": num_dt,
+            "LB": num_lb,
+            "CB": num_cb,
+            "S": num_s,
+            "PK": num_pk,
+            "P": num_p,
+            "LS": num_ls
+        }
+        for pos, count in position_counts.items():
+            for i in range(count):
+                player_name = f"Fake_{pos}_{i+1}"
+                players_ppi.append(get_player_ppi_time_series(player_name, pos))
+        return players_ppi
+    
+    def aggregate_real_players_ppi_time_series():
+        """
+        Aggregate PPI time series for all real players in the DataFrame.
+        Returns: list of {player_name: np.array([[timestamp, ppi], ...])}
+        """
+        players_ppi = []
+        # Get all unique passers and receivers in the DataFrame
+        real_player_names = set(df['passer_player_name'].unique()).union(set(df['receiver_player_name'].unique()))
+        for real_player in real_player_names:
+            # Infer position for real players
+            if real_player in df['passer_player_name'].values:
+                position = "QB"
+            elif real_player in df['receiver_player_name'].values:
+                position = "WR"  # Could be "TE" if more data available
+            else:
+                position = "Unknown" # something went wrong
+            players_ppi.append(get_player_ppi_time_series(real_player, position))
+        return players_ppi
+    
+    all_ppi_over_time = aggregate_real_players_ppi_time_series().append(create_fake_players_ppi_time_series())
 
-    return np.array(all_ppi_over_time), np.array(tpi_over_time)
+    def get_team_tpi_time_series():
+        """
+        Compute TPI time series for one team passed into compute_ppi_tpi_from_plays.
+        Returns: np.array([[timestamp, tpi], ...])
+        """
+
+        data = []
+        # Get all unique timestamps
+        timestamps = sorted(df['game_seconds_remaining'].unique())
+        # For each timestamp, sum PPI for all team players
+        for ts in timestamps:
+            tpi_val = 0.0
+            for player_ppi_dict in all_ppi_over_time:
+                for _, player_ppi_arr in player_ppi_dict.items():
+                    ppi_at_ts = player_ppi_arr[player_ppi_arr[:,0] == ts, 1]
+                    if ppi_at_ts.size > 0:
+                        tpi_val += ppi_at_ts[0]
+            data.append([tpi_val, ts])
+
+        return np.array(data)
+    
+    return all_ppi_over_time, get_player_ppi_time_series()
