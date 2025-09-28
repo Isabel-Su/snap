@@ -11,8 +11,9 @@ def compute_ppi_tpi_from_plays(plays_json):
         plays_json (list of dicts): JSON list of plays from cassette
     
     Returns:
-        ppi_array, tpi_array (numpy arrays with shape [n,2])
-        Each row = [timestamp, value]
+        ppi_over_time (list of dicts with player name as key and np.arrays with shape [n,2] as value)
+        tpi_over_time (np.array with shape [n,2])
+        Each row = [timestamp, performance index]
     """
 
     df = pd.DataFrame(plays_json)
@@ -24,6 +25,14 @@ def compute_ppi_tpi_from_plays(plays_json):
 
     # calculate PPI at instant of event based on a position & its formula
     def calc_ppi(position: str, timestamp):
+        """
+        Calculate the Player Performance Index (PPI) for a given position and timestamp.
+        Parameters:
+            position (str): The position of the player (e.g., 'QB', 'WR', 'TE', etc.)
+            timestamp: The timestamp to fetch the play from the DataFrame.
+        Returns:
+            float: The calculated PPI value for the player at the given timestamp, or a random value if not enough data.
+        """
         
         # Fetch the row for the given timestamp
         row = df[df['timestamp'] == timestamp]
@@ -61,14 +70,14 @@ def compute_ppi_tpi_from_plays(plays_json):
                 # generate fake timestamps at random intervals, with each interval between 60 and 500 seconds
                 fake_timestamp = i * random.random() * 440 + 60
                 fake_ppi = calc_ppi(position, -1)
-                data.append([fake_ppi, fake_timestamp])
+                data.append([fake_timestamp, fake_ppi])
 
         # player is real
         else:
             for _, row in player_rows.iterrows():
                 timestamp = row["game_seconds_remaining"]
                 ppi_val = calc_ppi(position, timestamp=timestamp)
-                data.append([ppi_val, timestamp])
+                data.append([timestamp, ppi_val])
 
         print({player_name: np.array(data)})
         return {player_name: np.array(data)}
@@ -142,8 +151,8 @@ def compute_ppi_tpi_from_plays(plays_json):
                     ppi_at_ts = player_ppi_arr[player_ppi_arr[:,0] == ts, 1]
                     if ppi_at_ts.size > 0:
                         tpi_val += ppi_at_ts[0]
-            data.append([tpi_val, ts])
+            data.append([ts, tpi_val])
 
         return np.array(data)
     
-    return all_ppi_over_time, get_player_ppi_time_series()
+    return all_ppi_over_time, get_team_tpi_time_series()
