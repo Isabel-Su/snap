@@ -143,14 +143,72 @@ function WebChart() {
   const tpiPath = points.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${xScale(pt.elapsed)} ${yScale(pt.tpi)}`).join(' ');
   const ppiPath = points.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${xScale(pt.elapsed)} ${yScale(pt.ppi)}`).join(' ');
 
+  const formatMMSS = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  // x-axis ticks: major every 300s, minor every 60s
+  const xMajor: number[] = [];
+  for (let t = meta.start; t <= meta.end; t += 300) xMajor.push(t);
+  const xMinor: number[] = [];
+  for (let t = meta.start; t <= meta.end; t += 60) xMinor.push(t);
+
+  // y-axis ticks (5 ticks)
+  const yTicks: number[] = [];
+  const yCount = 5;
+  for (let i = 0; i < yCount; i++) {
+    yTicks.push(meta.ymin + (i / (yCount - 1)) * (meta.ymax - meta.ymin));
+  }
+
   return (
     <div style={{ width: '80%', maxWidth: 900 }}>
       <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ backgroundColor: '#111', borderRadius: 8 }}>
         <rect x="0" y="0" width={w} height={h} fill="#111" />
+        {/* Chart title */}
+        <text x={w / 2} y={20} textAnchor="middle" fontSize={18} fontWeight={700} fill="#fff">Player Impact</text>
+
+        {/* grid lines and y ticks */}
+        <g>
+          {yTicks.map((yt, i) => {
+            const yy = yScale(yt);
+            return (
+              <g key={`y${i}`}>
+                <line x1={pad} x2={w - pad} y1={yy} y2={yy} stroke="#2a2a2a" strokeWidth={1} />
+                <text x={8} y={yy + 4} fontSize={12} fill="#bbb">{yt.toFixed(2)}</text>
+              </g>
+            );
+          })}
+        </g>
+
+        {/* x-axis grid & ticks */}
+        <g>
+          {xMinor.map((xm, i) => {
+            const xx = xScale(xm);
+            return <line key={`xm${i}`} x1={xx} x2={xx} y1={h - pad + 4} y2={h - pad + 8} stroke="#444" strokeWidth={1} />;
+          })}
+          {xMajor.map((xm, i) => {
+            const xx = xScale(xm);
+            return (
+              <g key={`xM${i}`}>
+                <line x1={xx} x2={xx} y1={h - pad} y2={pad} stroke="#2a2a2a" strokeWidth={1} />
+                <text x={xx - 18} y={h - pad + 18} fontSize={12} fill="#ddd">{formatMMSS(xm - meta.start)}</text>
+              </g>
+            );
+          })}
+        </g>
+
+        {/* axis labels */}
+        <g>
+          <text x={w / 2} y={h - 6} textAnchor="middle" fontSize={13} fill="#ddd">Game Time (MM:SS elapsed)</text>
+          <text transform={`translate(${12}, ${h / 2}) rotate(-90)`} textAnchor="middle" fontSize={13} fill="#ddd">Performance Index</text>
+        </g>
+
+        {/* plotted data */}
         <g>
           <path d={tpiPath} stroke="#4fa3ff" strokeWidth={2} fill="none" />
           <path d={ppiPath} stroke="#ff6b6b" strokeWidth={2} strokeDasharray="6 4" fill="none" />
-          {/* current marker */}
           {points.length > 0 && (
             <circle cx={xScale(points[points.length - 1].elapsed)} cy={yScale(points[points.length - 1].tpi)} r={4} fill="#fff" />
           )}
