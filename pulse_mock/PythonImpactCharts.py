@@ -22,6 +22,13 @@ import threading
 import time
 import json
 
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import analysis
+from pulse_mock.client import NFLMockClient
+import numpy as np
+
 plt.style.use("fivethirtyeight")
 # Attempt to register the user's local "Industry" font files so matplotlib
 # text uses the same typography. This is defensive: if the font files are
@@ -56,52 +63,32 @@ except Exception:
     # Don't let font registration prevent the module from importing.
     pass
 
+
 # --- Sample plays data ---
-plays = [
-    {"game_seconds_remaining": 3409.0, "qb_epa": 0.552650292403996, "wpa": 0.0292352437973022},
-    {"game_seconds_remaining": 3249.0, "qb_epa": 0.190153431612998, "wpa": 0.0016123950481414},
-    {"game_seconds_remaining": 2652.0, "qb_epa": 0.555401087272912, "wpa": 0.0147861838340759},
-    {"game_seconds_remaining": 2568.0, "qb_epa": -0.285567590035498, "wpa": -0.0037904381752014},
-    {"game_seconds_remaining": 2521.0, "qb_epa": 1.28535311296582, "wpa": 0.0119984149932861},
-    {"game_seconds_remaining": 2479.0, "qb_epa": -0.430872592609376, "wpa": 0.0031712353229522},
-    {"game_seconds_remaining": 1920.0, "qb_epa": -0.515209543053061, "wpa": -0.0262914001941681},
-    {"game_seconds_remaining": 1913.0, "qb_epa": 3.72801848780364, "wpa": 0.153878569602966},
-    {"game_seconds_remaining": 1880.0, "qb_epa": -0.401088450045791, "wpa": -0.0135473608970642},
-    {"game_seconds_remaining": 1876.0, "qb_epa": 0.675303220981732, "wpa": 0.0184066891670227},
-    {"game_seconds_remaining": 1869.0, "qb_epa": 0.511088427563664, "wpa": 0.0012808442115783},
-    {"game_seconds_remaining": 1795.0, "qb_epa": 0.0729459878057241, "wpa": 0.0003869533538818},
-    {"game_seconds_remaining": 1752.0, "qb_epa": 0.731964903650805, "wpa": 0.0195994973182678},
-    {"game_seconds_remaining": 1719.0, "qb_epa": -0.258798455586657, "wpa": -0.0113470554351807},
-    {"game_seconds_remaining": 1502.0, "qb_epa": -2.0366979597602, "wpa": -0.0663243532180786},
-    {"game_seconds_remaining": 1456.0, "qb_epa": -1.51156951696861, "wpa": -0.0221386551856995},
-    {"game_seconds_remaining": 1142.0, "qb_epa": -0.789402016904205, "wpa": -0.0237884521484375},
-    {"game_seconds_remaining": 886.0, "qb_epa": 0.539945995435119, "wpa": 0.0156305432319641},
-    {"game_seconds_remaining": 621.0, "qb_epa": 0.363901168340817, "wpa": 0.0197494029998779},
-    {"game_seconds_remaining": 586.0, "qb_epa": 0.368475484661758, "wpa": 0.0027300715446472},
-    {"game_seconds_remaining": 506.0, "qb_epa": -0.825948749668896, "wpa": -0.0326569676399231},
-    {"game_seconds_remaining": 498.0, "qb_epa": -0.44213400199078, "wpa": 0.0102556347846985},
-    {"game_seconds_remaining": 235.0, "qb_epa": -0.565623112954199, "wpa": -0.0481255054473877},
-    {"game_seconds_remaining": 111.0, "qb_epa": 0.0784624250954948, "wpa": 0.0168435573577881},
-]
-
-# --- Formatting helpers ---
-
-def format_mmss(sec):
-    m = int(sec) // 60
-    s = int(sec) % 60
-    return f"{m:02d}:{s:02d}"
-
-# Compute elapsed (x-axis) and series
-elapsed = [3600 - p['game_seconds_remaining'] for p in plays]
-tpi = [p.get('qb_epa', 0.0) for p in plays]
-ppi = [p.get('wpa', 0.0) for p in plays]
+def get_data(player: str = None):
+    client = NFLMockClient()
+    ppi, tpi = analysis.compute_ppi_tpi_from_plays(client.get_game_data()[2]['plays'])
+    ppi_dict = {}
+    for player_entry in ppi:
+        for player_name, arr in player_entry.items():
+            ppi_dict[player_name] = arr
+    elapsed = (3600 - tpi[:,0]).tolist()
+    tpi_vals = tpi[:,1].tolist()
+    # Select player PPI
+    if player and player in ppi_dict:
+        ppi_vals = ppi_dict[player][:,1].tolist()
+    else:
+        first_player = next(iter(ppi_dict)) if ppi_dict else None
+        ppi_vals = ppi_dict[first_player][:,1].tolist() if first_player else [0]*len(elapsed)
+    return elapsed, tpi_vals, ppi_vals
 
 # Ensure chronological order
-combined = sorted(zip(elapsed, tpi, ppi), key=lambda x: x[0])
-elapsed, tpi, ppi = [list(col) for col in zip(*combined)]
+elapsed, tpi_vals, ppi_vals = get_data() # need to put some get request in this func call
+combined = sorted(zip(elapsed, tpi_vals, ppi_vals), key=lambda x: x[0])
+elapsed, tpi_vals, ppi_vals = map(list, zip(*combined))
 
 # Axis ranges
-all_y = tpi + ppi
+all_y = tpi_vals + ppi_vals
 ymin, ymax = min(all_y), max(all_y)
 pad = (ymax - ymin) * 0.12 if ymax != ymin else 0.5
 
@@ -111,16 +98,22 @@ end = int(math.ceil(max_e / 60.0) * 60)
 if start == end:
     end = start + 60
 
-app = Flask(__name__)
+# --- Formatting helpers ---
+def format_mmss(sec):
+    m = int(sec) // 60
+    s = int(sec) % 60
+all_y = tpi_vals + ppi_vals
+ymin, ymax = min(all_y), max(all_y)
 
+app = Flask(__name__)
 
 def render_impact_chart_bytes() -> BytesIO:
     fig, ax = plt.subplots(figsize=(10, 4.5))
     # leave extra space at the bottom so x-axis labels don't get cropped
-    fig.subplots_adjust(bottom=0.22)
-    ax.set_title("Microeconomy Impact Chart")
-    ax.set_xlabel("Game Time (MM:SS elapsed)")
-    ax.set_ylabel("Performance Index")
+    ax.plot(elapsed, tpi_vals, 'b-', label='Team Performance Index (TPI)')
+    ax.plot(elapsed, ppi_vals, 'r--', label='Player Performance Index (PPI)')
+    if elapsed:
+        ax.plot([elapsed[-1]], [tpi_vals[-1]], 'ko', ms=6)
     ax.set_xlim(start, end)
     ax.set_ylim(ymin - pad, ymax + pad)
 
@@ -130,8 +123,6 @@ def render_impact_chart_bytes() -> BytesIO:
     ax.xaxis.set_minor_formatter(NullFormatter())
     ax.tick_params(axis='x', which='major', length=7)
     ax.tick_params(axis='x', which='minor', length=3)
-    plt.setp(ax.get_xticklabels(), rotation=45)
-    ax.grid(alpha=0.3)
 
     ax.plot(elapsed, tpi, 'b-', label='Team Performance Index (TPI)')
     ax.plot(elapsed, ppi, 'r--', label='Player Performance Index (PPI)')
@@ -146,7 +137,6 @@ def render_impact_chart_bytes() -> BytesIO:
     buf.seek(0)
     return buf
 
-
 @app.route('/impact_chart')
 def impact_chart():
     buf = render_impact_chart_bytes()
@@ -154,7 +144,6 @@ def impact_chart():
 
 
 # --- Animated GIF endpoint (cached) ---
-_gif_lock = threading.Lock()
 _gif_cache_path = os.path.join(os.path.dirname(__file__), 'impact_chart.gif')
 
 def generate_impact_gif(path: str, interval_ms: int = 300):
@@ -188,8 +177,8 @@ def generate_impact_gif(path: str, interval_ms: int = 300):
 
     def update(i):
         x = elapsed[: i + 1]
-        y1 = tpi[: i + 1]
-        y2 = ppi[: i + 1]
+        y1 = tpi_vals[: i + 1]
+        y2 = ppi_vals[: i + 1]
         line_tpi.set_data(x, y1)
         line_ppi.set_data(x, y2)
         if x:
@@ -207,38 +196,6 @@ def generate_impact_gif(path: str, interval_ms: int = 300):
     ani.save(path, writer=writer)
     plt.close(fig)
 
-
-@app.route('/impact_chart.gif')
-def impact_chart_gif():
-    """Return a cached animated GIF; generate it on first request."""
-    # If cache exists, return it
-    if os.path.exists(_gif_cache_path):
-        return send_file(_gif_cache_path, mimetype='image/gif')
-
-    # Prevent concurrent generation
-    with _gif_lock:
-        # Double-check after acquiring lock
-        if os.path.exists(_gif_cache_path):
-            return send_file(_gif_cache_path, mimetype='image/gif')
-
-        # Generate GIF (may take a moment)
-        try:
-            # Use temporary file then atomically rename
-            fd, tmp_path = tempfile.mkstemp(suffix='.gif', dir=os.path.dirname(_gif_cache_path))
-            os.close(fd)
-            generate_impact_gif(tmp_path, interval_ms=300)
-            os.replace(tmp_path, _gif_cache_path)
-            return send_file(_gif_cache_path, mimetype='image/gif')
-        except Exception:
-            # cleanup tmp if exists
-            try:
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-            except Exception:
-                pass
-            raise
-
-
 @app.route('/impact_chart.json')
 def impact_chart_json():
     """Return the chart data as JSON so frontends (web) can render natively.
@@ -247,12 +204,12 @@ def impact_chart_json():
     """
     payload = {
         'elapsed': elapsed,
-        'tpi': tpi,
-        'ppi': ppi,
+        'tpi': tpi_vals,
+        'ppi': ppi_vals,
         'start': start,
         'end': end,
         'ymin': ymin - pad,
-        'ymax': ymax + pad,
+        'ymax': ymax + pad
     }
     resp = make_response(jsonify(payload))
     resp.headers['Access-Control-Allow-Origin'] = '*'
@@ -275,7 +232,7 @@ def impact_chart_stream():
 
     def generate():
         for i in range(len(elapsed)):
-            payload = {'i': i, 'elapsed': elapsed[i], 'tpi': tpi[i], 'ppi': ppi[i]}
+            payload = {'i': i, 'elapsed': elapsed[i], 'tpi': tpi_vals[i], 'ppi': ppi_vals[i]}
             yield f"data: {json.dumps(payload)}\n\n"
             time.sleep(interval_ms / 1000.0)
         # final event to indicate completion

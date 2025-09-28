@@ -48,7 +48,7 @@ def compute_ppi_tpi_from_plays(plays_json):
         if position == "QB":
             return 0.5 * row["qb_epa"] + 0.2 * row["air_epa"] + 0.2 * row["wpa"] + 0.1 * (row["yards_gained"] / 10)
         # player == a receiver
-        elif position == "WR" or position is "TE":
+        elif position == "WR" or position == "TE":
             return 0.4 * row["yac_epa"] + 0.3 * row["air_epa"] + 0.2 * row["wpa"] + 0.1 * (row["yards_gained"] / 10)
         else:
             return random.random() * random.randint(-1, 1) # something went wrong
@@ -142,7 +142,7 @@ def compute_ppi_tpi_from_plays(plays_json):
             players_ppi.append(get_player_ppi_time_series(real_player, position))
         return players_ppi
     
-    all_ppi_over_time = aggregate_real_players_ppi_time_series() + create_fake_players_ppi_time_series(num_qb=2, num_wr=0)[1:]
+    all_ppi_over_time = (aggregate_real_players_ppi_time_series() + create_fake_players_ppi_time_series(num_qb=2, num_wr=0))[1:]
     # print(all_ppi_over_time)
 
 
