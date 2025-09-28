@@ -55,7 +55,7 @@ echo "Starting Python services..."
 python3 pulse_mock/app.py > "${LOG_DIR}/pulse_app.log" 2>&1 &
 pid=$!
 echo $pid > "${PID_DIR}/pulse_app.pid"
-python3 pulse_mock/PythonImpactCharts.py > "${LOG_DIR}/impact.log" 2>&1 &
+python3 pulse_mock/server.py > "${LOG_DIR}/impact.log" 2>&1 &
 pid=$!
 echo $pid > "${PID_DIR}/impact.pid"
 python3 pulse_mock/Scroller.py > "${LOG_DIR}/scroller.log" 2>&1 &
