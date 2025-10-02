@@ -1,13 +1,2 @@
-PyYAML>=5.1.0
-Flask>=2.0.0
-requests>=2.25.0
 pandas==2.3.2
-matplotlib==3.10.6
-scikit-learn==1.3.2
-
-# Development helper tools (Node/npm) - not Python packages but useful for contributors
-# Install these with npm inside reactFrontEnd/ if you want the combined dev workflow:
-# concurrently (run multiple npm scripts together), nodemon (auto-restart dev-proxy), http-proxy (used by dev-proxy)
-# Example:
-#   cd reactFrontEnd
-#   npm install --save-dev concurrently nodemon http-proxy
+numpy>=1.21.0
